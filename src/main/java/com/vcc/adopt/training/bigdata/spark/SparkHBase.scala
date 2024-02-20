@@ -101,7 +101,7 @@ object SparkHBase {
       .csv(test)
     df = df
       .withColumn("country", lit("US"))
-      .repartition(5)  // chia dataframe thành 5 phân vùng, mỗi phân vùng sẽ được chạy trên một worker (nếu không chia mặc định là 200)
+      .repartition()  // chia dataframe thành 5 phân vùng, mỗi phân vùng sẽ được chạy trên một worker (nếu không chia mặc định là 200)
 
     val batchPutSize = 100  // để đẩy dữ liệu vào hbase nhanh, thay vì đẩy lẻ tẻ từng dòng thì ta đẩy theo lô, như ví dụ là cứ 100 dòng sẽ đẩy 1ần
     df.foreachPartition((rows: Iterator[Row]) => {
