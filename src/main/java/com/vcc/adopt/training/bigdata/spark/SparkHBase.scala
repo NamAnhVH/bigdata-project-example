@@ -16,6 +16,7 @@ object SparkHBase {
 
   val spark: SparkSession = SparkSession.builder().getOrCreate()
   spark.sparkContext.setLogLevel("WARN")
+  spark.conf.set("spark.sql.debug.maxToStringFields", 10000)
   private val personInfoLogPath = ConfigPropertiesLoader.getYamlConfig.getProperty("personInfoLogPath")
   private val personIdListLogPath = ConfigPropertiesLoader.getYamlConfig.getProperty("personIdListLogPath")
   private val ageAnalysisPath = ConfigPropertiesLoader.getYamlConfig.getProperty("ageAnalysisPath")
