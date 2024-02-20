@@ -99,13 +99,11 @@ object SparkHBase {
       .schema(schema)
       .option("delimiter", "\t")
       .csv(test)
-    df.show(df.count().toInt, false)
     df = df
       .withColumn("country", lit("US"))
       .repartition(5)  // chia dataframe thành 5 phân vùng, mỗi phân vùng sẽ được chạy trên một worker (nếu không chia mặc định là 200)
 
     val batchPutSize = 100  // để đẩy dữ liệu vào hbase nhanh, thay vì đẩy lẻ tẻ từng dòng thì ta đẩy theo lô, như ví dụ là cứ 100 dòng sẽ đẩy 1ần
-    println(1)
     df.foreachPartition((rows: Iterator[Row]) => {
       // tạo connection hbase buộc phải tạo bên trong mỗi partition (không được tạo bên ngoài). Tối ưu hơn sẽ dùng connectionPool để reuse lại connection trên các worker
       val hbaseConnection = HBaseConnectionFactory.createConnection()
@@ -113,14 +111,12 @@ object SparkHBase {
         val table = hbaseConnection.getTable(TableName.valueOf("test", "test_info"))
         val puts = new util.ArrayList[Put]()
         for (row <- rows) {
-          println(2)
           val timeCreate = row.getAs[java.sql.Timestamp]("timeCreate").getTime
           val cookieCreate = row.getAs[java.sql.Timestamp]("cookieCreate").getTime
           val browserCode = row.getAs[Int]("browserCode")
           val browserVer = row.getAs[String]("browserVer")
           val osCode = row.getAs[Int]("osCode")
           val osVer = row.getAs[String]("osVer")
-          println(3)
           val ip = row.getAs[Long]("ip")
           val locId = row.getAs[Int]("locId")
           val domain = row.getAs[String]("domain")
@@ -160,6 +156,7 @@ object SparkHBase {
 
           puts.add(put)
           if (puts.size > batchPutSize) {
+            print(1)
             table.put(puts)
             puts.clear()
           }
