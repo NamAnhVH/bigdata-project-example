@@ -73,16 +73,33 @@ object SparkHBase {
   private def readHDFSThenPutToHBase(): Unit = {
     println("----- Read person-info.parquet on HDFS then put to table person:person-info ----")
 //    var df = spark.read.parquet(personInfoLogPath)
+    val schema = StructType(Seq(
+      StructField("timeCreate", TimestampType, nullable = true),
+      StructField("cookieCreate", TimestampType, nullable = true),
+      StructField("browserCode", IntegerType, nullable = true),
+      StructField("browserVer", StringType, nullable = true),
+      StructField("osCode", IntegerType, nullable = true),
+      StructField("osVer", StringType, nullable = true),
+      StructField("ip", LongType, nullable = true),
+      StructField("locId", IntegerType, nullable = true),
+      StructField("domain", StringType, nullable = true),
+      StructField("siteId", IntegerType, nullable = true),
+      StructField("cId", IntegerType, nullable = true),
+      StructField("path", StringType, nullable = true),
+      StructField("referer", StringType, nullable = true),
+      StructField("guid", LongType, nullable = true),
+      StructField("flashVersion", StringType, nullable = true),
+      StructField("jre", StringType, nullable = true),
+      StructField("sr", StringType, nullable = true),
+      StructField("sc", StringType, nullable = true),
+      StructField("geographic", IntegerType, nullable = true),
+      StructField("category", IntegerType, nullable = true)
+    ))
     var df = spark.read
+      .schema(schema)
       .option("delimiter", "\t")
       .csv(test)
-      .toDF(
-        "timeCreate", "cookieCreate", "browserCode", "browserVer", "osCode",
-        "osVer", "ip", "locId", "domain", "siteId", "cId", "path",
-        "referer", "guid", "flashVersion", "jre", "sr", "sc", "geographic",
-        "category"
-      )
-    df.show()
+    df.show(df.count().toInt, false)
     df = df
       .withColumn("country", lit("US"))
       .repartition(5)  // chia dataframe thành 5 phân vùng, mỗi phân vùng sẽ được chạy trên một worker (nếu không chia mặc định là 200)
