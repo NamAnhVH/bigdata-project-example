@@ -73,8 +73,6 @@ object SparkHBase {
   private def readHDFSThenPutToHBase(): Unit = {
     println("----- Read person-info.parquet on HDFS then put to table person:person-info ----")
 //    var df = spark.read.parquet(personInfoLogPath)
-    println("chill")
-//    var df = spark.read.parquet(test)
     val schema = StructType(Seq(
       StructField("timeCreate", TimestampType, nullable = true),
       StructField("cookieCreate", TimestampType, nullable = true),
@@ -102,7 +100,7 @@ object SparkHBase {
       .schema(schema)
       .format("parquet")
       .load(test)
-    println(df)
+    df.show()
     df = df
       .withColumn("country", lit("US"))
       .repartition(5)  // chia dataframe thành 5 phân vùng, mỗi phân vùng sẽ được chạy trên một worker (nếu không chia mặc định là 200)
@@ -116,12 +114,14 @@ object SparkHBase {
         val table = hbaseConnection.getTable(TableName.valueOf("test", "test_info"))
         val puts = new util.ArrayList[Put]()
         for (row <- rows) {
+          println(2)
           val timeCreate = row.getAs[java.sql.Timestamp]("timeCreate").getTime
           val cookieCreate = row.getAs[java.sql.Timestamp]("cookieCreate").getTime
           val browserCode = row.getAs[Int]("browserCode")
           val browserVer = row.getAs[String]("browserVer")
           val osCode = row.getAs[Int]("osCode")
           val osVer = row.getAs[String]("osVer")
+          println(3)
           val ip = row.getAs[Long]("ip")
           val locId = row.getAs[Int]("locId")
           val domain = row.getAs[String]("domain")
