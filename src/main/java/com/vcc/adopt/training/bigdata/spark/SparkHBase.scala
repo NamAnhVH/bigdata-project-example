@@ -117,7 +117,7 @@ object SparkHBase {
           val browserCode = row.getAs[Int]("browserCode")
           val browserVer = row.getAs[String]("browserVer")
           val osCode = row.getAs[Int]("osCode")
-          val osVer = row.getAs[String]("osVer")
+          val osVer = Option(row.getAs[String]("osVer")).getOrElse(" ")
           val ip = row.getAs[Long]("ip")
           val locId = row.getAs[Int]("locId")
           val domain = row.getAs[String]("domain")
