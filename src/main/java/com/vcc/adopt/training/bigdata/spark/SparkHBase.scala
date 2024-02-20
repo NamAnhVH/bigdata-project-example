@@ -73,6 +73,7 @@ object SparkHBase {
   private def readHDFSThenPutToHBase(): Unit = {
     println("----- Read person-info.parquet on HDFS then put to table person:person-info ----")
 //    var df = spark.read.parquet(personInfoLogPath)
+    println("chill")
     var df = spark.read.parquet(test)
     println(df)
     df = df
