@@ -74,6 +74,7 @@ object SparkHBase {
     println("----- Read person-info.parquet on HDFS then put to table person:person-info ----")
 //    var df = spark.read.parquet(personInfoLogPath)
     var df = spark.read.parquet(test)
+    println(df)
     df = df
       .withColumn("country", lit("US"))
       .repartition(5)  // chia dataframe thành 5 phân vùng, mỗi phân vùng sẽ được chạy trên một worker (nếu không chia mặc định là 200)
