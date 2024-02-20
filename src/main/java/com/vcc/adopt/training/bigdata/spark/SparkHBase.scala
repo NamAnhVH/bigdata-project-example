@@ -155,15 +155,18 @@ object SparkHBase {
           put.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("category"), Bytes.toBytes(category))
 
           puts.add(put)
-          if (puts.size > batchPutSize) {
-            print(1)
-            table.put(puts)
-            puts.clear()
-          }
-        }
-        if (puts.size() > 0) {  // đẩy nốt phần còn lại
           table.put(puts)
+          puts.clear()
+
+//          if (puts.size > batchPutSize) {
+//            print(1)
+//            table.put(puts)
+//            puts.clear()
+//          }
         }
+//        if (puts.size() > 0) {  // đẩy nốt phần còn lại
+//          table.put(puts)
+//        }
       } finally {
         hbaseConnection.close()
       }
