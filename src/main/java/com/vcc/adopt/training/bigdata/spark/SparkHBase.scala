@@ -100,7 +100,7 @@ object SparkHBase {
     var df = spark.read
       .option("delimiter", "\t")
       .schema(schema)
-      .format("csv")
+      .format("parquet")
       .load(test)
     println(df)
     df = df
