@@ -28,10 +28,10 @@ object SparkHBase {
       .toDF("data")
 
     // Chuyển đổi dữ liệu từ cột 'data' sang cột 'x' và 'y'
-    val parsedData = data.selectExpr("split(data, ',')[0] as x", "split(data, ',')[1] as y")
+    val parsedData = data.selectExpr("cast(split(data, ',')[0] as double) as x", "cast(split(data, ',')[1] as double) as y")
 
     // Hiển thị dữ liệu
-    parsedData.show(-1)
+    parsedData.show()
 
     // Tạo một đối tượng KMeans
     val assembler = new VectorAssembler()
@@ -42,7 +42,7 @@ object SparkHBase {
     val dataWithFeatures = assembler.transform(parsedData)
 
     // Hiển thị dữ liệu đã chuyển đổi
-    dataWithFeatures.show(-1)
+    dataWithFeatures.show()
 
     // Tạo một đối tượng KMeans
     val kmeans = new KMeans()
