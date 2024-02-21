@@ -95,8 +95,12 @@ object SparkHBase {
     val filteredData = df.filter(col("timeCreate").cast("long") > col("cookieCreate").cast("long") + lit(600000))
       .select("guid", "domain", "path", "timeCreate")
 
-    val stringTypedData = filteredData.withColumn("guid", col("guid").cast(StringType))
-
+    val stringTypedData = filteredData.selectExpr(
+      "CAST(guid AS STRING) AS guid",
+      "CAST(domain AS STRING) AS domain",
+      "CAST(path AS STRING) AS path",
+      "CAST(timeCreate AS STRING) AS timeCreate"
+    )
     stringTypedData.write.text("result.dat")
 
   }
