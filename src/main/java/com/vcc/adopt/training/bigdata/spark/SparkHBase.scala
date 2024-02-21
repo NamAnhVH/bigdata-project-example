@@ -64,32 +64,38 @@ object SparkHBase {
     val df: DataFrame = spark.read.schema(schema).parquet(pageViewLogPath)
 
     // Hiển thị schema của DataFrame để xác định các trường dữ liệu
-    df.printSchema()
+//    df.printSchema()
 
     // 3.1. Lấy url đã truy cập nhiều nhất trong ngày của mỗi guid
-    val urlCountPerGuid = df.groupBy("guid", "path").count()
-    val windowSpec = Window.partitionBy("guid").orderBy(col("count").desc)
-    val topUrlPerGuid = urlCountPerGuid.withColumn("rank", row_number().over(windowSpec)).where(col("rank") === 1).drop("count")
-    topUrlPerGuid.show()
+//    val urlCountPerGuid = df.groupBy("guid", "path").count()
+//    val windowSpec = Window.partitionBy("guid").orderBy(col("count").desc)
+//    val topUrlPerGuid = urlCountPerGuid.withColumn("rank", row_number().over(windowSpec)).where(col("rank") === 1).drop("count")
+//    topUrlPerGuid.show()
+//
+//    // 3.2. Các IP được sử dụng bởi nhiều guid nhất
+//    val ipCountPerGuid = df.groupBy("ip").agg(countDistinct("guid").alias("guid_count"))
+//    val topIPs = ipCountPerGuid.orderBy(col("guid_count").desc).limit(1000)
+//    topIPs.show()
+//
+//    // 3.3. Lấy top 100 các domain được truy cập nhiều nhất
+//    val topDomains = df.groupBy("domain").count().orderBy(col("count").desc).limit(100)
+//    topDomains.show()
+//
+//    // 3.4. Lấy top 10 các LocId có số lượng IP không trùng nhiều nhất
+//    val topLocIds = df.groupBy("locId").agg(countDistinct("ip").alias("unique_ip_count")).orderBy(col("unique_ip_count").desc).limit(10)
+//    topLocIds.show()
+//
+//    // 3.5. Tìm trình duyệt phổ biến nhất trong mỗi hệ điều hành (osCode và browserCode)
+//    val popularBrowserByOS = df.groupBy("osCode", "browserCode").count()
+//    val windowSpecOS = Window.partitionBy("osCode").orderBy(col("count").desc)
+//    val topBrowserByOS = popularBrowserByOS.withColumn("rank", row_number().over(windowSpecOS)).where(col("rank") === 1).drop("count")
+//    topBrowserByOS.show()
 
-    // 3.2. Các IP được sử dụng bởi nhiều guid nhất
-    val ipCountPerGuid = df.groupBy("ip").agg(countDistinct("guid").alias("guid_count"))
-    val topIPs = ipCountPerGuid.orderBy(col("guid_count").desc).limit(1000)
-    topIPs.show()
+    // 3.6. Lọc các dữ liệu có timeCreate nhiều hơn cookieCreate 10 phút, và chỉ lấy field guid, domain, path, timecreate và lưu lại thành file result.dat định dạng text và tải xuống.
+    val filteredData = df.filter(col("timeCreate").cast("long") > col("cookieCreate").cast("long") + lit(600000))
+      .select("guid", "domain", "path", "timeCreate")
+    filteredData.write.text("result.dat")
 
-    // 3.3. Lấy top 100 các domain được truy cập nhiều nhất
-    val topDomains = df.groupBy("domain").count().orderBy(col("count").desc).limit(100)
-    topDomains.show()
-
-    // 3.4. Lấy top 10 các LocId có số lượng IP không trùng nhiều nhất
-    val topLocIds = df.groupBy("locId").agg(countDistinct("ip").alias("unique_ip_count")).orderBy(col("unique_ip_count").desc).limit(10)
-    topLocIds.show()
-
-    // 3.5. Tìm trình duyệt phổ biến nhất trong mỗi hệ điều hành (osCode và browserCode)
-    val popularBrowserByOS = df.groupBy("osCode", "browserCode").count()
-    val windowSpecOS = Window.partitionBy("osCode").orderBy(col("count").desc)
-    val topBrowserByOS = popularBrowserByOS.withColumn("rank", row_number().over(windowSpecOS)).where(col("rank") === 1).drop("count")
-    topBrowserByOS.show()
   }
 
   def main(args: Array[String]): Unit = {
