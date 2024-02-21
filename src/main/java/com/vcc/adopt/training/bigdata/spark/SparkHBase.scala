@@ -21,17 +21,10 @@ object SparkHBase {
   private val personIdListLogPath = ConfigPropertiesLoader.getYamlConfig.getProperty("personIdListLogPath")
   private val ageAnalysisPath = ConfigPropertiesLoader.getYamlConfig.getProperty("ageAnalysisPath")
   private val test = ConfigPropertiesLoader.getYamlConfig.getProperty("test")
+  private val pageViewLogPath = ConfigPropertiesLoader.getYamlConfig.getProperty("pageViewLogPath")
 
-  private def createDataFrameAndPutToHDFS(): Unit = {
-    println(s"----- Make person info dataframe then write to parquet at ${personInfoLogPath} ----")
-
-    // tạo person-info dataframe và lưu vào HDFS
-    val data = Seq(
-      Row(1L, "Alice", 25),
-      Row(2L, "Bob", 30),
-      Row(3L, "Charlie", 22),
-      Row(4L, "Yorn", 22)
-    )
+  private def createParquetAndPutToHDFS(): Unit = {
+    println(s"----- Make person info dataframe then write to parquet at ${pageViewLogPath} ----")
 
     val schema = StructType(Seq(
       StructField("timeCreate", TimestampType, nullable = true),
@@ -56,19 +49,17 @@ object SparkHBase {
       StructField("category", IntegerType, nullable = true)
     ))
 
+    // tạo person-info dataframe và lưu vào HDFS
+    var data = spark.read
+      .schema(schema)
+      .option("delimiter", "\t")
+      .csv(test)
 
+    data.write
+      .mode("overwrite")  // Nếu tập tin này đã tồn tại trước đó, sẽ ghi đè lên nó
+      .parquet(pageViewLogPath)
 
-    val df = spark.createDataFrame(spark.sparkContext.parallelize(data), schema)
-    df.show()
-    df.write
-      .mode("overwrite")  // nếu file này đã tồn tại trước đó, sẽ ghi đè
-      .parquet(personInfoLogPath)
-
-    // tạo person-id-list và lưu vào HDFS
-    df.select("personId")
-      .write
-      .mode("overwrite")
-      .parquet(personIdListLogPath)
+    println(s"----- Done writing person info dataframe to Parquet at ${pageViewLogPath} ----")
   }
 
   private def readHDFSThenPutToHBase(): Unit = {
@@ -215,8 +206,8 @@ object SparkHBase {
   }
 
   def main(args: Array[String]): Unit = {
-//    createDataFrameAndPutToHDFS()
-    readHDFSThenPutToHBase()
+    createParquetAndPutToHDFS()
+//    readHDFSThenPutToHBase()
 //    readHBaseThenWriteToHDFS()
   }
 }

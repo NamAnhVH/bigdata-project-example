@@ -1,5 +1,2 @@
 
-personInfoLogPath: hdfs://namenode:9000/data/person-info.parquet
-personIdListLogPath: hdfs://namenode:9000/data/person-id-list.parquet
-ageAnalysisPath: hdfs://namenode:9000/data/analysis-person-info.parquet
-test: hdfs://namenode:9000/test/pt-v-1533869954405.dat
+pageViewLogPath: hdfs://namenode:9000/bai3/pageViewLog.parquet
