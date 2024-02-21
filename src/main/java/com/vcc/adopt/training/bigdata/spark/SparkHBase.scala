@@ -18,6 +18,7 @@ object SparkHBase {
   spark.sparkContext.setLogLevel("WARN")
   spark.conf.set("spark.sql.debug.maxToStringFields", 10000)
   private val pageViewLogPath = ConfigPropertiesLoader.getYamlConfig.getProperty("pageViewLogPath")
+  private val inputFilePath = ConfigPropertiesLoader.getYamlConfig.getProperty("inputFilePath")
 
   private def createParquetAndPutToHDFS(): Unit = {
     println(s"----- Make person info dataframe then write to parquet at ${pageViewLogPath} ----")
@@ -49,7 +50,7 @@ object SparkHBase {
     val data = spark.read
       .schema(schema)
       .option("delimiter", "\t")
-      .csv(pageViewLogPath)
+      .csv(inputFilePath)
 
     data.write
       .mode("overwrite")  // Nếu tập tin này đã tồn tại trước đó, sẽ ghi đè lên nó
