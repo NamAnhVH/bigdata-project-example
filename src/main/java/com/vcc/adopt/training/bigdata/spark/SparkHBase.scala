@@ -101,7 +101,10 @@ object SparkHBase {
       "CAST(path AS STRING) AS path",
       "CAST(timeCreate AS STRING) AS timeCreate"
     )
-    stringTypedData.write.text("result.dat")
+    val tabSeparatedData = stringTypedData.withColumn("concatenated",
+      concat_ws("\t", col("guid"), col("domain"), col("path"), col("timeCreate"))
+    ).select("concatenated")
+    tabSeparatedData.write.text("result.dat")
 
   }
 
