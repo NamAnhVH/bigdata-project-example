@@ -43,7 +43,7 @@ object SparkHBase {
     centroids.foreach(println)
 
     val predictions = model.transform(dataWithFeatures)
-    predictions.show(30000)
+    predictions.show()
   }
 
   def main(args: Array[String]): Unit = {
