@@ -17,7 +17,6 @@ object SparkHBase {
   val spark: SparkSession = SparkSession.builder().getOrCreate()
   spark.sparkContext.setLogLevel("WARN")
   spark.conf.set("spark.sql.debug.maxToStringFields", 10000)
-  private val personInfoLogPath = ConfigPropertiesLoader.getYamlConfig.getProperty("personInfoLogPath")
   private val personIdListLogPath = ConfigPropertiesLoader.getYamlConfig.getProperty("personIdListLogPath")
   private val ageAnalysisPath = ConfigPropertiesLoader.getYamlConfig.getProperty("ageAnalysisPath")
   private val test = ConfigPropertiesLoader.getYamlConfig.getProperty("test")
@@ -50,7 +49,7 @@ object SparkHBase {
     ))
 
     // tạo person-info dataframe và lưu vào HDFS
-    var data = spark.read
+    val data = spark.read
       .schema(schema)
       .option("delimiter", "\t")
       .csv(test)
@@ -206,6 +205,7 @@ object SparkHBase {
   }
 
   def main(args: Array[String]): Unit = {
+    println("main")
     createParquetAndPutToHDFS()
 //    readHDFSThenPutToHBase()
 //    readHBaseThenWriteToHDFS()
