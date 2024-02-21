@@ -52,7 +52,7 @@ object SparkHBase {
     val data = spark.read
       .schema(schema)
       .option("delimiter", "\t")
-      .csv(test)
+      .csv(pageViewLogPath)
 
     data.write
       .mode("overwrite")  // Nếu tập tin này đã tồn tại trước đó, sẽ ghi đè lên nó
@@ -207,7 +207,5 @@ object SparkHBase {
   def main(args: Array[String]): Unit = {
     println("main")
     createParquetAndPutToHDFS()
-//    readHDFSThenPutToHBase()
-//    readHBaseThenWriteToHDFS()
   }
 }
