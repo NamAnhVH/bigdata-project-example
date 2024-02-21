@@ -20,6 +20,7 @@ object SparkHBase {
   spark.conf.set("spark.sql.debug.maxToStringFields", 10000)
   private val pageViewLogPath = ConfigPropertiesLoader.getYamlConfig.getProperty("pageViewLogPath")
   private val inputFilePath = ConfigPropertiesLoader.getYamlConfig.getProperty("inputFilePath")
+  private val outputFilePath = ConfigPropertiesLoader.getYamlConfig.getProperty("outputFilePath")
 
   private val schema = StructType(Seq(
     StructField("timeCreate", TimestampType, nullable = true),
@@ -104,7 +105,7 @@ object SparkHBase {
     val tabSeparatedData = stringTypedData.withColumn("concatenated",
       concat_ws("\t", col("guid"), col("domain"), col("path"), col("timeCreate"))
     ).select("concatenated")
-    tabSeparatedData.write.text("result.dat")
+    tabSeparatedData.write.text(outputFilePath)
 
   }
 
