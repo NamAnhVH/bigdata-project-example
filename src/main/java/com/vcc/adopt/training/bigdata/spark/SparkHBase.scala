@@ -141,7 +141,7 @@ object SparkHBase {
 
   }
 
-  private def readHBase42(): Unit = {
+  private def readHBase42(guid: Long): Unit = {
     println("----- Các IP được sử dụng nhiều nhất của một guid (input: guid=> output: sort ds ip theo số lần xuất hiện) ----")
 
     val guidDF = spark.read.schema(schema).parquet(pageViewLogPath)
@@ -163,13 +163,18 @@ object SparkHBase {
         }
       }).toDF("guid", "ip")
 
+
     guidAndIpDF.persist()
     guidAndIpDF.show()
+
+    val result = guidAndIpDF.filter($"guid" === guid).groupBy("ip").count().orderBy(desc("count")).first()
+
+    result.show()
 
   }
 
   def main(args: Array[String]): Unit = {
 //    readHDFSThenPutToHBase()
-    readHBase42()
+    readHBase42(8133866058245435043L)
   }
 }
