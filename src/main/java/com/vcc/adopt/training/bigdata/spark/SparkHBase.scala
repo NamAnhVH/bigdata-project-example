@@ -63,7 +63,7 @@ object SparkHBase {
 
   private def bai3(): Unit = {
     val df: DataFrame = spark.read.schema(schema).parquet(pageViewLogPath)
-
+    df.show()
     // Hiển thị schema của DataFrame để xác định các trường dữ liệu
 //    df.printSchema()
 
