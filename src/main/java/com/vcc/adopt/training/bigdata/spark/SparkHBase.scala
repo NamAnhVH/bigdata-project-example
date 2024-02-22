@@ -179,7 +179,6 @@ object SparkHBase {
 
   def main(args: Array[String]): Unit = {
 //    readHDFSThenPutToHBase()
-    val guid = args(0)
-    readHBase42(guid.toLong)
+    readHBase42(8426351521952764762L)
   }
 }
