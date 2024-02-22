@@ -4,7 +4,7 @@ import com.vcc.adopt.config.ConfigPropertiesLoader
 import com.vcc.adopt.utils.hbase.HBaseConnectionFactory
 import org.apache.hadoop.hbase.TableName
 import org.apache.hadoop.hbase.client.{Put, Scan}
-import org.apache.hadoop.hbase.filter.PrefixFilter
+import org.apache.hadoop.hbase.filter.{PrefixFilter, SingleColumnValueFilter}
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.sql.types.{IntegerType, LongType, StringType, StructField, StructType, TimestampType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
@@ -146,15 +146,20 @@ object SparkHBase {
 
     val hbaseConnection = HBaseConnectionFactory.createConnection()
     val table = hbaseConnection.getTable(TableName.valueOf("bai4", "pageviewlog"))
+
     try {
+      val filter = new SingleColumnValueFilter(
+        Bytes.toBytes("cf"),  // Tên của cột gia đình
+        Bytes.toBytes("guid"), // Tên của cột
+        org.apache.hadoop.hbase.filter.CompareFilter.CompareOp.EQUAL, // Toán tử so sánh
+        Bytes.toBytes(guid) // Giá trị để so sánh
+      )
+      filter.setFilterIfMissing(true)
       val scan = new Scan()
-      val prefix = guid + "_"
-      val prefixFilter = new PrefixFilter(Bytes.toBytes(prefix))
-      scan.setFilter(prefixFilter)
+      scan.setFilter(filter)
 
       // Thực hiện quét dữ liệu từ bảng HBase
       val scanner = table.getScanner(scan)
-      println(scanner)
       // Tạo một Map để đếm số lần xuất hiện của mỗi địa chỉ IP
       val ipCountMap = scala.collection.mutable.Map[String, Int]().withDefaultValue(0)
 
