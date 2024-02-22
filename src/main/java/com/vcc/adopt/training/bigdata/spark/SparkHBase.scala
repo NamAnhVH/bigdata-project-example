@@ -5,7 +5,6 @@ import com.vcc.adopt.utils.hbase.HBaseConnectionFactory
 import org.apache.hadoop.hbase.TableName
 import org.apache.hadoop.hbase.client.{Get, Put}
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.types.{IntegerType, LongType, StringType, StructField, StructType, TimestampType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.functions._
@@ -19,10 +18,8 @@ object SparkHBase {
   spark.sparkContext.setLogLevel("WARN")
   spark.conf.set("spark.sql.debug.maxToStringFields", 10000)
   private val pageViewLogPath = ConfigPropertiesLoader.getYamlConfig.getProperty("pageViewLogPath")
-  private val inputFilePath = ConfigPropertiesLoader.getYamlConfig.getProperty("inputFilePath")
-  private val outputFilePath = ConfigPropertiesLoader.getYamlConfig.getProperty("outputFilePath")
 
-  private val schema = StructType(Seq(
+  val schema = StructType(Seq(
     StructField("timeCreate", TimestampType, nullable = true),
     StructField("cookieCreate", TimestampType, nullable = true),
     StructField("browserCode", IntegerType, nullable = true),
@@ -45,73 +42,117 @@ object SparkHBase {
     StructField("category", IntegerType, nullable = true)
   ))
 
-  private def createParquetAndPutToHDFS(): Unit = {
-    println(s"----- Make person info dataframe then write to parquet at ${pageViewLogPath} ----")
+  private def readHDFSThenPutToHBase(): Unit = {
+    println("----- Read person-info.parquet on HDFS then put to table person:person-info ----")
+    var df: DataFrame = spark.read.schema(schema).parquet(pageViewLogPath)
 
-    // tạo person-info dataframe và lưu vào HDFS
-    val data = spark.read
-      .schema(schema)
-      .option("delimiter", "\t")
-      .csv(inputFilePath)
+    df = df
+      .withColumn("country", lit("US"))
+      .repartition(5)  // chia dataframe thành 5 phân vùng, mỗi phân vùng sẽ được chạy trên một worker (nếu không chia mặc định là 200)
 
-    data.write
-      .mode("overwrite")  // Nếu tập tin này đã tồn tại trước đó, sẽ ghi đè lên nó
-      .parquet(pageViewLogPath)
+    val batchPutSize = 100  // để đẩy dữ liệu vào hbase nhanh, thay vì đẩy lẻ tẻ từng dòng thì ta đẩy theo lô, như ví dụ là cứ 100 dòng sẽ đẩy 1ần
+    df.foreachPartition((rows: Iterator[Row]) => {
+      // tạo connection hbase buộc phải tạo bên trong mỗi partition (không được tạo bên ngoài). Tối ưu hơn sẽ dùng connectionPool để reuse lại connection trên các worker
+      val hbaseConnection = HBaseConnectionFactory.createConnection()
+      try {
+        val table = hbaseConnection.getTable(TableName.valueOf("test", "test_info"))
+        val puts = new util.ArrayList[Put]()
+        for (row <- rows) {
+          val timeCreate = row.getAs[java.sql.Timestamp]("timeCreate").getTime
+          val cookieCreate = row.getAs[java.sql.Timestamp]("cookieCreate").getTime
+          val browserCode = row.getAs[Int]("browserCode")
+          val browserVer = row.getAs[String]("browserVer")
+          val osCode = row.getAs[Int]("osCode")
+          val osVer = Option(row.getAs[String]("osVer")).getOrElse(" ")
+          val ip = row.getAs[Long]("ip")
+          val locId = row.getAs[Int]("locId")
+          val domain = row.getAs[String]("domain")
+          val siteId = row.getAs[Int]("siteId")
+          val cId = row.getAs[Int]("cId")
+          val path = row.getAs[String]("path")
+          val referer = row.getAs[String]("referer")
+          val guid = row.getAs[Long]("guid")
+          val flashVersion = row.getAs[String]("flashVersion")
+          val jre = row.getAs[String]("jre")
+          val sr = row.getAs[String]("sr")
+          val sc = row.getAs[String]("sc")
+          val geographic = row.getAs[Int]("geographic")
+          val category = row.getAs[Int]("category")
 
-    println(s"----- Done writing person info dataframe to Parquet at ${pageViewLogPath} ----")
+          val put = new Put(Bytes.toBytes(timeCreate))
+          put.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("timeCreate"), Bytes.toBytes(timeCreate))
+          put.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("cookieCreate"), Bytes.toBytes(cookieCreate))
+          put.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("browserCode"), Bytes.toBytes(browserCode))
+          put.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("browserVer"), Bytes.toBytes(browserVer))
+          put.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("osCode"), Bytes.toBytes(osCode))
+          put.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("osVer"), Bytes.toBytes(osVer))
+          put.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("ip"), Bytes.toBytes(ip))
+          put.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("locId"), Bytes.toBytes(locId))
+          put.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("domain"), Bytes.toBytes(domain))
+          put.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("siteId"), Bytes.toBytes(siteId))
+          put.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("cId"), Bytes.toBytes(cId))
+          put.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("path"), Bytes.toBytes(path))
+          put.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("referer"), Bytes.toBytes(referer))
+          put.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("guid"), Bytes.toBytes(guid))
+          put.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("flashVersion"), Bytes.toBytes(flashVersion))
+          put.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("jre"), Bytes.toBytes(jre))
+          put.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("sr"), Bytes.toBytes(sr))
+          put.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("sc"), Bytes.toBytes(sc))
+          put.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("geographic"), Bytes.toBytes(geographic))
+          put.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("category"), Bytes.toBytes(category))
+
+          puts.add(put)
+          table.put(puts)
+          puts.clear()
+        }
+      } finally {
+        hbaseConnection.close()
+      }
+    })
   }
 
-  private def bai3(): Unit = {
-    val df: DataFrame = spark.read.schema(schema).parquet(pageViewLogPath)
-
-    // Hiển thị schema của DataFrame để xác định các trường dữ liệu
-//    df.printSchema()
-
-    // 3.1. Lấy url đã truy cập nhiều nhất trong ngày của mỗi guid
-    val dfWithDate = df.withColumn("timeCreate", to_date(col("timeCreate")))
-    val urlCountPerGuid = dfWithDate.groupBy("guid", "timeCreate", "path").agg(count("*").alias("access_count"))
-    val windowSpec = Window.partitionBy("guid", "timeCreate").orderBy(col("access_count").desc)
-    val topUrlPerGuid = urlCountPerGuid.withColumn("rank", row_number().over(windowSpec)).where(col("rank") === 1)
-    topUrlPerGuid.show()
-
-    // 3.2. Các IP được sử dụng bởi nhiều guid nhất
-    val ipCountPerGuid = df.groupBy("ip").agg(countDistinct("guid").alias("guid_count"))
-    val topIPs = ipCountPerGuid.orderBy(col("guid_count").desc).limit(1000)
-    topIPs.show()
-
-    // 3.3. Lấy top 100 các domain được truy cập nhiều nhất
-    val topDomains = df.groupBy("domain").count().orderBy(col("count").desc).limit(100)
-    topDomains.show()
-
-    // 3.4. Lấy top 10 các LocId có số lượng IP không trùng nhiều nhất
-    val topLocIds = df.groupBy("locId").agg(countDistinct("ip").alias("unique_ip_count")).orderBy(col("unique_ip_count").desc).limit(10)
-    topLocIds.show()
-
-    // 3.5. Tìm trình duyệt phổ biến nhất trong mỗi hệ điều hành (osCode và browserCode)
-    val popularBrowserByOS = df.groupBy("osCode", "browserCode").count()
-    val windowSpecOS = Window.partitionBy("osCode").orderBy(col("count").desc)
-    val topBrowserByOS = popularBrowserByOS.withColumn("rank", row_number().over(windowSpecOS)).where(col("rank") === 1).drop("count")
-    topBrowserByOS.show()
-
-//     3.6. Lọc các dữ liệu có timeCreate nhiều hơn cookieCreate 10 phút, và chỉ lấy field guid, domain, path, timecreate và lưu lại thành file result.dat định dạng text và tải xuống.
-    val filteredData = df.filter(col("timeCreate").cast("long") > col("cookieCreate").cast("long") + lit(600000))
-      .select("guid", "domain", "path", "timeCreate")
-
-    val stringTypedData = filteredData.selectExpr(
-      "CAST(guid AS STRING) AS guid",
-      "CAST(domain AS STRING) AS domain",
-      "CAST(path AS STRING) AS path",
-      "CAST(timeCreate AS STRING) AS timeCreate"
-    )
-    val tabSeparatedData = stringTypedData.withColumn("concatenated",
-      concat_ws("\t", col("guid"), col("domain"), col("path"), col("timeCreate"))
-    ).select("concatenated")
-    tabSeparatedData.write.mode("overwrite").text(outputFilePath)
-
-  }
+//  private def readHBaseThenWriteToHDFS(): Unit = {
+//    println("----- Read person:info table to dataframe then analysis and write result to HDFS ----")
+//    /**
+//     * thống kê độ tuổi từ danh sách person_id
+//     * Cách xử lý:
+//     *    1. lấy danh sách person_id cần thống kê ở personIdListLogPath
+//     *    2. từ danh sách person_id lấy độ tuổi của mỗi người ở bảng person:person-info ở HBase
+//     *    3. dùng các phép transform trên dataframe để tính thống kê
+//     *    4. kết quả lưu vào HDFS
+//     */
+//
+//    val personIdDF = spark.read.parquet(personIdListLogPath)
+//    import spark.implicits._
+//    val personIdAndAgeDF = personIdDF
+//      .repartition(5)
+//      .mapPartitions((rows: Iterator[Row]) => {
+//        val hbaseConnection = HBaseConnectionFactory.createConnection()
+//        val table = hbaseConnection.getTable(TableName.valueOf("person", "person_info"))
+//        try {
+//          rows.map(row => {
+//            val get = new Get(Bytes.toBytes(row.getAs[Long]("personId")))
+//            get.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("age"))  // mặc định sẽ lấy ra tất cả các cột, dùng lệnh này giúp chỉ lấy cột age
+//            (row.getAs[Long]("personId"), Bytes.toInt(table.get(get).getValue(Bytes.toBytes("cf"), Bytes.toBytes("age"))))
+//          })
+//        }finally {
+//          //          hbaseConnection.close()
+//        }
+//      }).toDF("personId", "age")
+//
+//    personIdAndAgeDF.persist()
+//    personIdAndAgeDF.show()
+//
+//    val analysisDF = personIdAndAgeDF.groupBy("age").count()
+//    analysisDF.show()
+//    analysisDF.write.mode("overwrite").parquet(ageAnalysisPath)
+//
+//    personIdAndAgeDF.unpersist()
+//
+//  }
 
   def main(args: Array[String]): Unit = {
-//    createParquetAndPutToHDFS()
-    bai3()
+    readHDFSThenPutToHBase()
+    //    readHBaseThenWriteToHDFS()
   }
 }

@@ -1,4 +1,1 @@
-
 pageViewLogPath: hdfs://namenode:9000/bai3/pageViewLog.parquet
-inputFilePath: hdfs://namenode:9000/bai3/data.dat
-outputFilePath: hdfs://namenode:9000/bai3/result.dat
