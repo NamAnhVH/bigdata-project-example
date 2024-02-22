@@ -44,7 +44,8 @@ object SparkHBase {
 
   private def readHDFSThenPutToHBase(): Unit = {
     println("----- Read pageViewLog.parquet on HDFS then put to table pageviewlog ----")
-    var df: DataFrame = spark.read.schema(schema).parquet(pageViewLogPath)
+    var df = spark.read.schema(schema).parquet(pageViewLogPath)
+    df.show()
     df = df
       .withColumn("country", lit("US"))
       .repartition(5)  // chia dataframe thành 5 phân vùng, mỗi phân vùng sẽ được chạy trên một worker (nếu không chia mặc định là 200)
@@ -57,24 +58,24 @@ object SparkHBase {
         val table = hbaseConnection.getTable(TableName.valueOf("bai4", "pageviewlog"))
         val puts = new util.ArrayList[Put]()
         for (row <- rows) {
-          val timeCreate = row.getAs[java.sql.Timestamp]("timeCreate").getTime
-          val cookieCreate = row.getAs[java.sql.Timestamp]("cookieCreate").getTime
+          val timeCreate = Option(row.getAs[java.sql.Timestamp]("timeCreate")).map(_.getTime).getOrElse(0L)
+          val cookieCreate = Option(row.getAs[java.sql.Timestamp]("cookieCreate")).map(_.getTime).getOrElse(0L)
           val browserCode = row.getAs[Int]("browserCode")
-          val browserVer = row.getAs[String]("browserVer")
+          val browserVer = Option(row.getAs[String]("browserVer")).getOrElse("")
           val osCode = row.getAs[Int]("osCode")
-          val osVer = Option(row.getAs[String]("osVer")).getOrElse(" ")
+          val osVer = Option(row.getAs[String]("osVer")).getOrElse("")
           val ip = row.getAs[Long]("ip")
           val locId = row.getAs[Int]("locId")
-          val domain = row.getAs[String]("domain")
+          val domain = Option(row.getAs[String]("domain")).getOrElse("")
           val siteId = row.getAs[Int]("siteId")
           val cId = row.getAs[Int]("cId")
-          val path = row.getAs[String]("path")
-          val referer = row.getAs[String]("referer")
+          val path = Option(row.getAs[String]("path")).getOrElse("")
+          val referer = Option(row.getAs[String]("referer")).getOrElse("")
           val guid = row.getAs[Long]("guid")
-          val flashVersion = row.getAs[String]("flashVersion")
-          val jre = row.getAs[String]("jre")
-          val sr = row.getAs[String]("sr")
-          val sc = row.getAs[String]("sc")
+          val flashVersion = Option(row.getAs[String]("flashVersion")).getOrElse("")
+          val jre = Option(row.getAs[String]("jre")).getOrElse("")
+          val sr = Option(row.getAs[String]("sr")).getOrElse("")
+          val sc = Option(row.getAs[String]("sc")).getOrElse("")
           val geographic = row.getAs[Int]("geographic")
           val category = row.getAs[Int]("category")
 
