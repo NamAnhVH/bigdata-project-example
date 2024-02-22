@@ -3,7 +3,7 @@ package com.vcc.adopt.training.bigdata.spark
 import com.vcc.adopt.config.ConfigPropertiesLoader
 import com.vcc.adopt.utils.hbase.HBaseConnectionFactory
 import org.apache.hadoop.hbase.TableName
-import org.apache.hadoop.hbase.client.{Put, Scan}
+import org.apache.hadoop.hbase.client.{Get, Put, Scan}
 import org.apache.hadoop.hbase.filter.{PrefixFilter, SingleColumnValueFilter}
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.sql.types.{IntegerType, LongType, StringType, StructField, StructType, TimestampType}
@@ -142,40 +142,16 @@ object SparkHBase {
   }
 
   private def readHBase42(guid: Long): Unit = {
-    println("----- Liệt kê các url đã truy cập trong ngày của một guid (input: guid, date => output: ds url) ----")
+    println("----- Các IP được sử dụng nhiều nhất của một guid (input: guid=> output: sort ds ip theo số lần xuất hiện) ----")
 
     val hbaseConnection = HBaseConnectionFactory.createConnection()
     val table = hbaseConnection.getTable(TableName.valueOf("bai4", "pageviewlog"))
 
     try {
-      val filter = new SingleColumnValueFilter(
-        Bytes.toBytes("cf"),  // Tên của cột gia đình
-        Bytes.toBytes("guid"), // Tên của cột
-        org.apache.hadoop.hbase.filter.CompareFilter.CompareOp.EQUAL, // Toán tử so sánh
-        Bytes.toBytes(guid) // Giá trị để so sánh
-      )
-      filter.setFilterIfMissing(true)
-      val scan = new Scan()
-      scan.setFilter(filter)
-
-      // Thực hiện quét dữ liệu từ bảng HBase
-      val scanner = table.getScanner(scan)
-      // Tạo một Map để đếm số lần xuất hiện của mỗi địa chỉ IP
-      val ipCountMap = scala.collection.mutable.Map[String, Int]().withDefaultValue(0)
-
-      // Lặp qua các kết quả quét và đếm số lần xuất hiện của mỗi địa chỉ IP
-      scanner.forEach(result => {
-        val ip = Bytes.toString(result.getValue(Bytes.toBytes("cf"), Bytes.toBytes("ip")))
-        ipCountMap(ip) += 1
-      })
-
-      // Sắp xếp Map theo giá trị giảm dần
-      val sortedIpCount = ipCountMap.toSeq.sortBy(-_._2)
-
-      // Hiển thị danh sách các IP được sử dụng nhiều nhất
-      sortedIpCount.foreach { case (ip, count) =>
-        println(s"$ip: $count")
-      }
+      val get = new Get(Bytes.toBytes(guid))
+      get.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("ip"))
+      val dataFrame = (guid, Bytes.toInt(table.get(get).getValue(Bytes.toBytes("cf"), Bytes.toBytes("ip"))))
+      dataFrame.show()
     }finally {
       hbaseConnection.close()
     }
@@ -184,6 +160,6 @@ object SparkHBase {
 
   def main(args: Array[String]): Unit = {
 //    readHDFSThenPutToHBase()
-    readHBase42(8426351521952764762L)
+    readHBase42(7333613966245544540L)
   }
 }
