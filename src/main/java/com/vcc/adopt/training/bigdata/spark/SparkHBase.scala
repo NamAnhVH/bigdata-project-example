@@ -80,7 +80,7 @@ object SparkHBase {
           val geographic = row.getAs[Int]("geographic")
           val category = row.getAs[Int]("category")
 
-          val put = new Put(Bytes.toBytes(timeCreate))
+          val put = new Put(Bytes.toBytes(guid))
           put.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("timeCreate"), Bytes.toBytes(timeCreate))
           put.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("cookieCreate"), Bytes.toBytes(cookieCreate))
           put.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("browserCode"), Bytes.toBytes(browserCode))
@@ -168,7 +168,7 @@ object SparkHBase {
   }
 
   def main(args: Array[String]): Unit = {
-//    readHDFSThenPutToHBase()
-    readHBase42()
+    readHDFSThenPutToHBase()
+//    readHBase42()
   }
 }
