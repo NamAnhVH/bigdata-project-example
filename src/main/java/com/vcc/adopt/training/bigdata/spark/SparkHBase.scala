@@ -154,9 +154,9 @@ object SparkHBase {
 
       // Thực hiện quét dữ liệu từ bảng HBase
       val scanner = table.getScanner(scan)
-
+      println(scanner)
       // Tạo một Map để đếm số lần xuất hiện của mỗi địa chỉ IP
-      var ipCountMap = scala.collection.mutable.Map[String, Int]().withDefaultValue(0)
+      val ipCountMap = scala.collection.mutable.Map[String, Int]().withDefaultValue(0)
 
       // Lặp qua các kết quả quét và đếm số lần xuất hiện của mỗi địa chỉ IP
       scanner.forEach(result => {
