@@ -153,9 +153,10 @@ object SparkHBase {
         val table = hbaseConnection.getTable(TableName.valueOf("bai4", "pageviewlog"))
         try {
           rows.map(row => {
-            val get = new Get(Bytes.toBytes(row.getAs[Long]("guid")))
+            val get = new Get(Bytes.toBytes(row.getAs[Long]("cookieCreate")))
+            get.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("guid"))
             get.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("ip"))  // mặc định sẽ lấy ra tất cả các cột, dùng lệnh này giúp chỉ lấy cột age
-            (row.getAs[Long]("guid"), Bytes.toLong(table.get(get).getValue(Bytes.toBytes("cf"), Bytes.toBytes("ip"))))
+            (Bytes.toLong(table.get(get).getValue(Bytes.toBytes("cf"), Bytes.toBytes("guid"))), Bytes.toLong(table.get(get).getValue(Bytes.toBytes("cf"), Bytes.toBytes("ip"))))
           })
         }finally {
 //          hbaseConnection.close()
@@ -168,7 +169,7 @@ object SparkHBase {
   }
 
   def main(args: Array[String]): Unit = {
-    readHDFSThenPutToHBase()
-//    readHBase42()
+//    readHDFSThenPutToHBase()
+    readHBase42()
   }
 }
