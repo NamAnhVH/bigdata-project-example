@@ -167,6 +167,10 @@ object SparkHBase {
     guidAndIpDF.persist()
     guidAndIpDF.show()
 
+    val test : DataFrame = guidAndIpDF.filter($"guid" === guid).toDF("guid", "ip")
+
+    test.show()
+
     val result: DataFrame = guidAndIpDF.filter($"guid" === guid).groupBy("ip").count().orderBy(desc("count")).toDF("ip", "count")
 
     result.show()
