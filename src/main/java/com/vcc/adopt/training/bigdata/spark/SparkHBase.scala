@@ -45,7 +45,6 @@ object SparkHBase {
   private def readHDFSThenPutToHBase(): Unit = {
     println("----- Read pageViewLog.parquet on HDFS then put to table pageviewlog ----")
     var df: DataFrame = spark.read.schema(schema).parquet(pageViewLogPath)
-    df.show()
     df = df
       .withColumn("country", lit("US"))
       .repartition(5)  // chia dataframe thành 5 phân vùng, mỗi phân vùng sẽ được chạy trên một worker (nếu không chia mặc định là 200)
@@ -55,7 +54,7 @@ object SparkHBase {
       // tạo connection hbase buộc phải tạo bên trong mỗi partition (không được tạo bên ngoài). Tối ưu hơn sẽ dùng connectionPool để reuse lại connection trên các worker
       val hbaseConnection = HBaseConnectionFactory.createConnection()
       try {
-        val table = hbaseConnection.getTable(TableName.valueOf("bai4", "pageViewLog"))
+        val table = hbaseConnection.getTable(TableName.valueOf("bai4", "pageviewlog"))
         val puts = new util.ArrayList[Put]()
         for (row <- rows) {
           val timeCreate = row.getAs[java.sql.Timestamp]("timeCreate").getTime
