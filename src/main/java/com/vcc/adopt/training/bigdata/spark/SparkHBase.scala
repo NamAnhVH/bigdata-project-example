@@ -106,7 +106,7 @@ object SparkHBase {
     val tabSeparatedData = stringTypedData.withColumn("concatenated",
       concat_ws("\t", col("guid"), col("domain"), col("path"), col("timeCreate"))
     ).select("concatenated")
-    tabSeparatedData.write.text(outputFilePath)
+    tabSeparatedData.write.mode("overwrite").text(outputFilePath)
 
   }
 
