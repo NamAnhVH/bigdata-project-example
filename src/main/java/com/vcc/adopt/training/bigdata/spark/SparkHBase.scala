@@ -141,25 +141,34 @@ object SparkHBase {
 
   }
 
-  private def readHBase42(guid: Long): Unit = {
+  private def readHBase42(): Unit = {
     println("----- Các IP được sử dụng nhiều nhất của một guid (input: guid=> output: sort ds ip theo số lần xuất hiện) ----")
 
-    val hbaseConnection = HBaseConnectionFactory.createConnection()
-    val table = hbaseConnection.getTable(TableName.valueOf("bai4", "pageviewlog"))
+    val guidDF = spark.read.schema(schema).parquet(pageViewLogPath)
+    import spark.implicits._
+    val guidAndIpDF = guidDF
+      .repartition(5)
+      .mapPartitions((rows: Iterator[Row]) => {
+        val hbaseConnection = HBaseConnectionFactory.createConnection()
+        val table = hbaseConnection.getTable(TableName.valueOf("bai4", "pageviewlog"))
+        try {
+          rows.map(row => {
+            val get = new Get(Bytes.toBytes(row.getAs[Long]("guid")))
+            get.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("ip"))  // mặc định sẽ lấy ra tất cả các cột, dùng lệnh này giúp chỉ lấy cột age
+            (row.getAs[Long]("guid"), Bytes.toLong(table.get(get).getValue(Bytes.toBytes("cf"), Bytes.toBytes("ip"))))
+          })
+        }finally {
+          hbaseConnection.close()
+        }
+      }).toDF("guid", "ip")
 
-    try {
-      val get = new Get(Bytes.toBytes(guid))
-      get.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("ip"))
-      val dataFrame = (guid, Bytes.toInt(table.get(get).getValue(Bytes.toBytes("cf"), Bytes.toBytes("ip"))))
-      dataFrame.show()
-    }finally {
-      hbaseConnection.close()
-    }
+    guidAndIpDF.persist()
+    guidAndIpDF.show()
 
   }
 
   def main(args: Array[String]): Unit = {
 //    readHDFSThenPutToHBase()
-    readHBase42(7333613966245544540L)
+    readHBase42()
   }
 }
