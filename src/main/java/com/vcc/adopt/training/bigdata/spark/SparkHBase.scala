@@ -43,9 +43,9 @@ object SparkHBase {
   ))
 
   private def readHDFSThenPutToHBase(): Unit = {
-    println("----- Read person-info.parquet on HDFS then put to table person:person-info ----")
+    println("----- Read pageViewLog.parquet on HDFS then put to table pageviewlog ----")
     var df: DataFrame = spark.read.schema(schema).parquet(pageViewLogPath)
-
+    df.show()
     df = df
       .withColumn("country", lit("US"))
       .repartition(5)  // chia dataframe thành 5 phân vùng, mỗi phân vùng sẽ được chạy trên một worker (nếu không chia mặc định là 200)
