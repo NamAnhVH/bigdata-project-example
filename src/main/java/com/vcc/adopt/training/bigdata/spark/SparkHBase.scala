@@ -3,7 +3,8 @@ package com.vcc.adopt.training.bigdata.spark
 import com.vcc.adopt.config.ConfigPropertiesLoader
 import com.vcc.adopt.utils.hbase.HBaseConnectionFactory
 import org.apache.hadoop.hbase.TableName
-import org.apache.hadoop.hbase.client.{Get, Put}
+import org.apache.hadoop.hbase.client.{Put, Scan}
+import org.apache.hadoop.hbase.filter.PrefixFilter
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.sql.types.{IntegerType, LongType, StringType, StructField, StructType, TimestampType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
@@ -116,48 +117,69 @@ object SparkHBase {
     })
   }
 
-//  private def readHBaseThenWriteToHDFS(): Unit = {
-//    println("----- Read person:info table to dataframe then analysis and write result to HDFS ----")
-//    /**
-//     * thống kê độ tuổi từ danh sách person_id
-//     * Cách xử lý:
-//     *    1. lấy danh sách person_id cần thống kê ở personIdListLogPath
-//     *    2. từ danh sách person_id lấy độ tuổi của mỗi người ở bảng person:person-info ở HBase
-//     *    3. dùng các phép transform trên dataframe để tính thống kê
-//     *    4. kết quả lưu vào HDFS
-//     */
-//
-//    val personIdDF = spark.read.parquet(personIdListLogPath)
-//    import spark.implicits._
-//    val personIdAndAgeDF = personIdDF
-//      .repartition(5)
-//      .mapPartitions((rows: Iterator[Row]) => {
-//        val hbaseConnection = HBaseConnectionFactory.createConnection()
-//        val table = hbaseConnection.getTable(TableName.valueOf("person", "person_info"))
-//        try {
-//          rows.map(row => {
-//            val get = new Get(Bytes.toBytes(row.getAs[Long]("personId")))
-//            get.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("age"))  // mặc định sẽ lấy ra tất cả các cột, dùng lệnh này giúp chỉ lấy cột age
-//            (row.getAs[Long]("personId"), Bytes.toInt(table.get(get).getValue(Bytes.toBytes("cf"), Bytes.toBytes("age"))))
-//          })
-//        }finally {
-//          //          hbaseConnection.close()
-//        }
-//      }).toDF("personId", "age")
-//
-//    personIdAndAgeDF.persist()
-//    personIdAndAgeDF.show()
-//
-//    val analysisDF = personIdAndAgeDF.groupBy("age").count()
-//    analysisDF.show()
-//    analysisDF.write.mode("overwrite").parquet(ageAnalysisPath)
-//
-//    personIdAndAgeDF.unpersist()
-//
-//  }
+  private def readHBase41(guid: Long, date: java.sql.Timestamp): Unit = {
+    println("----- Liệt kê các url đã truy cập trong ngày của một guid (input: guid, date => output: ds url) ----")
+
+    val hbaseConnection = HBaseConnectionFactory.createConnection()
+    val table = hbaseConnection.getTable(TableName.valueOf("bai4", "pageviewlog"))
+    try {
+      val startRow = guid.toString + "_" + date.toString
+      val stopRow = guid.toString + "_" + date.toString + "|"
+      val scan = new Scan(Bytes.toBytes(startRow), Bytes.toBytes(stopRow))
+
+      // Thực hiện quét dữ liệu từ bảng HBase
+      val scanner = table.getScanner(scan)
+
+      // Liệt kê các URL đã truy cập trong ngày của GUID
+      scanner.forEach(result => {
+        val path = Bytes.toString(result.getValue(Bytes.toBytes("cf"), Bytes.toBytes("path")))
+        println(path)
+      })
+    }finally {
+      hbaseConnection.close()
+    }
+
+  }
+
+  private def readHBase42(guid: Long): Unit = {
+    println("----- Liệt kê các url đã truy cập trong ngày của một guid (input: guid, date => output: ds url) ----")
+
+    val hbaseConnection = HBaseConnectionFactory.createConnection()
+    val table = hbaseConnection.getTable(TableName.valueOf("bai4", "pageviewlog"))
+    try {
+      val scan = new Scan()
+      val prefix = guid + "_"
+      val prefixFilter = new PrefixFilter(Bytes.toBytes(prefix))
+      scan.setFilter(prefixFilter)
+
+      // Thực hiện quét dữ liệu từ bảng HBase
+      val scanner = table.getScanner(scan)
+
+      // Tạo một Map để đếm số lần xuất hiện của mỗi địa chỉ IP
+      var ipCountMap = scala.collection.mutable.Map[String, Int]().withDefaultValue(0)
+
+      // Lặp qua các kết quả quét và đếm số lần xuất hiện của mỗi địa chỉ IP
+      scanner.forEach(result => {
+        val ip = Bytes.toString(result.getValue(Bytes.toBytes("cf"), Bytes.toBytes("ip")))
+        ipCountMap(ip) += 1
+      })
+
+      // Sắp xếp Map theo giá trị giảm dần
+      val sortedIpCount = ipCountMap.toSeq.sortBy(-_._2)
+
+      // Hiển thị danh sách các IP được sử dụng nhiều nhất
+      sortedIpCount.foreach { case (ip, count) =>
+        println(s"$ip: $count")
+      }
+    }finally {
+      hbaseConnection.close()
+    }
+
+  }
 
   def main(args: Array[String]): Unit = {
-    readHDFSThenPutToHBase()
-    //    readHBaseThenWriteToHDFS()
+//    readHDFSThenPutToHBase()
+    val guid = args(0)
+    readHBase42(guid.toLong)
   }
 }
