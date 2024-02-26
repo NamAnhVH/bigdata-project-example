@@ -239,9 +239,9 @@ object SparkHBase {
     data.persist()
     data.show()
 
-//    val resultDF = data.filter($"osCode" === osCode && $"browserCode" === browserCode && $"timeCreate" > t1 && $"timeCreate" < t2)
-//
-//    resultDF.show()
+    val resultDF = data.filter($"osCode" === osCode && $"browserCode" === browserCode && $"timeCreate" > t1 && $"timeCreate" < t2)
+
+    resultDF.show()
 
   }
 
@@ -250,6 +250,6 @@ object SparkHBase {
 //    readHDFSThenPutToHBase()
 //    readHBase42(8133866058245435043L)
 //    readHbase43(7795639421953446554L)
-    readHbase44(1,1,1L,1L)
+    readHbase44(10,16,1533195266000L,1533995266000L)
   }
 }
