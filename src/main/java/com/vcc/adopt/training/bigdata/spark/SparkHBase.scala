@@ -146,7 +146,8 @@ object SparkHBase {
     data.persist()
     data.show()
 
-    val resultDF = data.filter($"guid" === guid && $"timeCreate" > date && $"timeCreate" < date + (24 * 60 * 60 * 1000)).select("path")
+    val resultDF = data.filter($"guid" === guid && $"timeCreate" > date && $"timeCreate" < date + (24 * 60 * 60 * 1000)).select("path").distinct()
+
 
     resultDF.show()
   }
