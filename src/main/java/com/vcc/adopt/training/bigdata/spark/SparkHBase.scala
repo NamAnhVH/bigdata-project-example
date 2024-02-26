@@ -3,11 +3,8 @@ package com.vcc.adopt.training.bigdata.spark
 import com.vcc.adopt.config.ConfigPropertiesLoader
 import com.vcc.adopt.utils.hbase.HBaseConnectionFactory
 import org.apache.hadoop.hbase.TableName
-import org.apache.hadoop.hbase.client.{Get, Put, Scan}
-import org.apache.hadoop.hbase.filter.{PrefixFilter, SingleColumnValueFilter}
+import org.apache.hadoop.hbase.client.{Get, Put}
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.kafka.common.serialization.Serdes.Bytes
-import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.types.{IntegerType, LongType, StringType, StructField, StructType, TimestampType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.functions._
