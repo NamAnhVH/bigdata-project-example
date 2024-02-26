@@ -6,11 +6,13 @@ import org.apache.hadoop.hbase.TableName
 import org.apache.hadoop.hbase.client.{Get, Put, Scan}
 import org.apache.hadoop.hbase.filter.{PrefixFilter, SingleColumnValueFilter}
 import org.apache.hadoop.hbase.util.Bytes
+import org.apache.kafka.common.serialization.Serdes.Bytes
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.types.{IntegerType, LongType, StringType, StructField, StructType, TimestampType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.functions._
 
+import java.sql.Timestamp
 import java.util
 
 
@@ -118,28 +120,38 @@ object SparkHBase {
     })
   }
 
-  private def readHBase41(guid: Long, date: java.sql.Timestamp): Unit = {
+  private def readHBase41(guid: Long, date: Long): Unit = {
     println("----- Liệt kê các url đã truy cập trong ngày của một guid (input: guid, date => output: ds url) ----")
 
-    val hbaseConnection = HBaseConnectionFactory.createConnection()
-    val table = hbaseConnection.getTable(TableName.valueOf("bai4", "pageviewlog"))
-    try {
-      val startRow = guid.toString + "_" + date.toString
-      val stopRow = guid.toString + "_" + date.toString + "|"
-      val scan = new Scan(Bytes.toBytes(startRow), Bytes.toBytes(stopRow))
+    val guidDF = spark.read.schema(schema).parquet(pageViewLogPath)
+    import spark.implicits._
+    val data = guidDF
+      .repartition(5)
+      .mapPartitions((rows: Iterator[Row]) => {
+        val hbaseConnection = HBaseConnectionFactory.createConnection()
+        val table = hbaseConnection.getTable(TableName.valueOf("bai4", "pageviewlog"))
+        try {
+          rows.map(row => {
+            val get = new Get(Bytes.toBytes(Option(row.getAs[java.sql.Timestamp]("cookieCreate")).map(_.getTime).getOrElse(0L)))
+            get.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("guid"))
+            get.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("timeCreate"))
+            get.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("path"))
+            (Bytes.toLong(table.get(get).getValue(Bytes.toBytes("cf"), Bytes.toBytes("guid"))),
+              Bytes.toLong(table.get(get).getValue(Bytes.toBytes("cf"), Bytes.toBytes("timeCreate"))),
+              Bytes.toString(table.get(get).getValue(Bytes.toBytes("cf"), Bytes.toBytes("path")))
+            )
+          })
+        }finally {
+          //          hbaseConnection.close()
+        }
+      }).toDF("guid", "timeCreate", "path")
 
-      // Thực hiện quét dữ liệu từ bảng HBase
-      val scanner = table.getScanner(scan)
+    data.persist()
+    data.show()
 
-      // Liệt kê các URL đã truy cập trong ngày của GUID
-      scanner.forEach(result => {
-        val path = Bytes.toString(result.getValue(Bytes.toBytes("cf"), Bytes.toBytes("path")))
-        println(path)
-      })
-    }finally {
-      hbaseConnection.close()
-    }
+    val resultDF = data.filter($"guid" === guid && $"timeCreate" > date && $"timeCreate" < date + (24 * 60 * 60 * 1000)).select("path")
 
+    resultDF.show()
   }
 
   private def readHBase42(guid: Long): Unit = {
@@ -247,9 +259,9 @@ object SparkHBase {
 
 
   def main(args: Array[String]): Unit = {
-//    readHDFSThenPutToHBase()
+    readHBase41(8133866058245435043L, Timestamp.valueOf("2018-08-10 09:56:18").getTime)
 //    readHBase42(8133866058245435043L)
 //    readHbase43(7795639421953446554L)
-    readHbase44(10,16,1533195266000L,1533995266000L)
+//    readHbase44(10,16,1533195266000L,1533995266000L)
   }
 }
