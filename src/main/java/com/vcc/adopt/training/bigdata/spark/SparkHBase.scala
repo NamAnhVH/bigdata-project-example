@@ -187,7 +187,8 @@ object SparkHBase {
             val get = new Get(Bytes.toBytes(Option(row.getAs[java.sql.Timestamp]("cookieCreate")).map(_.getTime).getOrElse(0L)))
             get.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("guid"))
             get.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("timeCreate"))  // mặc định sẽ lấy ra tất cả các cột, dùng lệnh này giúp chỉ lấy cột age
-            (Bytes.toLong(table.get(get).getValue(Bytes.toBytes("cf"), Bytes.toBytes("guid"))), Bytes.toLong(table.get(get).getValue(Bytes.toBytes("cf"), Bytes.toBytes("timeCreate"))))
+            get.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("ip"))  // mặc định sẽ lấy ra tất cả các cột, dùng lệnh này giúp chỉ lấy cột age
+            (Bytes.toLong(table.get(get).getValue(Bytes.toBytes("cf"), Bytes.toBytes("guid"))), Bytes.toLong(table.get(get).getValue(Bytes.toBytes("cf"), Bytes.toBytes("timeCreate"))), Bytes.toLong(table.get(get).getValue(Bytes.toBytes("cf"), Bytes.toBytes("ip"))))
           })
         }finally {
           //          hbaseConnection.close()
@@ -198,12 +199,11 @@ object SparkHBase {
     guidAndIpDF.persist()
     guidAndIpDF.show()
 
-    val windowSpec = Window.partitionBy("guid").orderBy(desc("timeCreate"))
-
     val latestAccessDF = guidAndIpDF
-      .withColumn("latest_access_time", max("timeCreate").over(windowSpec))
-      .where($"guid" === guid && $"timeCreate" === $"latest_access_time")
-      .select("guid", "latest_access_time")
+      .groupBy("guid")
+      .agg(max("timeCreate").alias("latest_access_time"))
+      .join(guidAndIpDF, Seq("guid", "latest_access_time"), "inner")
+      .select("guid", "ip", "latest_access_time")
 
     latestAccessDF.show()
 
