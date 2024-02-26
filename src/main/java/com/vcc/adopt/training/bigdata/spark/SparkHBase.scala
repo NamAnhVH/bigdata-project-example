@@ -199,13 +199,12 @@ object SparkHBase {
     guidAndIpDF.persist()
     guidAndIpDF.show()
 
-    val latestAccessDF = guidAndIpDF
-      .groupBy("guid")
-      .agg(max("timeCreate").alias("latest_access_time"))
-      .join(guidAndIpDF, Seq("guid", "latest_access_time"), "inner")
-      .select("guid", "ip", "latest_access_time")
+    val resultDF = guidAndIpDF
+      .filter($"guid" === guid)
+      .orderBy(desc("timeCreate"))
+      .limit(1)
 
-    latestAccessDF.show()
+    resultDF.show()
 
   }
 
