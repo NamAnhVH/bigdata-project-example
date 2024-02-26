@@ -208,9 +208,48 @@ object SparkHBase {
 
   }
 
+  private def readHbase44(osCode: Int, browserCode: Int, t1: Long, t2: Long): Unit = {
+    println("------ Tính lấy các guid mà có oscode= x, browsercode = y, thời gian createtime nằm trong khoảng từ t1-t2 (x, y truyền vào tùy ý) ---------")
+
+    val guidDF = spark.read.schema(schema).parquet(pageViewLogPath)
+    import spark.implicits._
+    val data = guidDF
+      .repartition(5)
+      .mapPartitions((rows: Iterator[Row]) => {
+        val hbaseConnection = HBaseConnectionFactory.createConnection()
+        val table = hbaseConnection.getTable(TableName.valueOf("bai4", "pageviewlog"))
+        try {
+          rows.map(row => {
+            val get = new Get(Bytes.toBytes(Option(row.getAs[java.sql.Timestamp]("cookieCreate")).map(_.getTime).getOrElse(0L)))
+            get.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("guid"))
+            get.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("timeCreate"))  // mặc định sẽ lấy ra tất cả các cột, dùng lệnh này giúp chỉ lấy cột age
+            get.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("osCode"))  // mặc định sẽ lấy ra tất cả các cột, dùng lệnh này giúp chỉ lấy cột age
+            get.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("browserCode"))
+            (Bytes.toLong(table.get(get).getValue(Bytes.toBytes("cf"), Bytes.toBytes("guid"))),
+              Bytes.toLong(table.get(get).getValue(Bytes.toBytes("cf"), Bytes.toBytes("timeCreate"))),
+              Bytes.toInt(table.get(get).getValue(Bytes.toBytes("cf"), Bytes.toBytes("osCode"))),
+              Bytes.toInt(table.get(get).getValue(Bytes.toBytes("cf"), Bytes.toBytes("browserCode")))
+            )
+          })
+        }finally {
+          //          hbaseConnection.close()
+        }
+      }).toDF("guid", "timeCreate", "osCode", "browserCode")
+
+    data.persist()
+    data.show()
+
+//    val resultDF = data.filter($"osCode" === osCode && $"browserCode" === browserCode && $"timeCreate" > t1 && $"timeCreate" < t2)
+//
+//    resultDF.show()
+
+  }
+
+
   def main(args: Array[String]): Unit = {
 //    readHDFSThenPutToHBase()
 //    readHBase42(8133866058245435043L)
-    readHbase43(7795639421953446554L)
+//    readHbase43(7795639421953446554L)
+    readHbase44(1,1,1L,1L)
   }
 }
