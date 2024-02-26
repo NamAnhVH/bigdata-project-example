@@ -6,6 +6,7 @@ import org.apache.hadoop.hbase.TableName
 import org.apache.hadoop.hbase.client.{Get, Put, Scan}
 import org.apache.hadoop.hbase.filter.{PrefixFilter, SingleColumnValueFilter}
 import org.apache.hadoop.hbase.util.Bytes
+import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.types.{IntegerType, LongType, StringType, StructField, StructType, TimestampType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.functions._
@@ -167,18 +168,50 @@ object SparkHBase {
     guidAndIpDF.persist()
     guidAndIpDF.show()
 
-    val test : DataFrame = guidAndIpDF.filter($"guid" === guid).toDF("guid", "ip")
-
-    test.show()
-
     val result: DataFrame = guidAndIpDF.filter($"guid" === guid).groupBy("ip").count().orderBy(desc("count")).toDF("ip", "count")
-
     result.show()
+  }
+
+  private def readHbase43(guid: Long): Unit = {
+    println("------ Tìm thời gian truy cập gần nhất của một GUID (input: guid=> output: thời gian truy cập gần nhất) ---------")
+
+    val guidDF = spark.read.schema(schema).parquet(pageViewLogPath)
+    import spark.implicits._
+    val guidAndIpDF = guidDF
+      .repartition(5)
+      .mapPartitions((rows: Iterator[Row]) => {
+        val hbaseConnection = HBaseConnectionFactory.createConnection()
+        val table = hbaseConnection.getTable(TableName.valueOf("bai4", "pageviewlog"))
+        try {
+          rows.map(row => {
+            val get = new Get(Bytes.toBytes(Option(row.getAs[java.sql.Timestamp]("cookieCreate")).map(_.getTime).getOrElse(0L)))
+            get.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("guid"))
+            get.addColumn(Bytes.toBytes("cf"), Bytes.toBytes("timeCreate"))  // mặc định sẽ lấy ra tất cả các cột, dùng lệnh này giúp chỉ lấy cột age
+            (Bytes.toLong(table.get(get).getValue(Bytes.toBytes("cf"), Bytes.toBytes("guid"))), Bytes.toLong(table.get(get).getValue(Bytes.toBytes("cf"), Bytes.toBytes("timeCreate"))))
+          })
+        }finally {
+          //          hbaseConnection.close()
+        }
+      }).toDF("guid", "ip")
+
+
+    guidAndIpDF.persist()
+    guidAndIpDF.show()
+
+    val windowSpec = Window.partitionBy("guid").orderBy(desc("timeCreate"))
+
+    val latestAccessDF = guidAndIpDF
+      .withColumn("latest_access_time", max("timeCreate").over(windowSpec))
+      .where($"guid" === guid && $"timeCreate" === $"latest_access_time")
+      .select("guid", "ip", "latest_access_time")
+
+    latestAccessDF.show()
 
   }
 
   def main(args: Array[String]): Unit = {
 //    readHDFSThenPutToHBase()
-    readHBase42(8133866058245435043L)
+//    readHBase42(8133866058245435043L)
+    readHbase43(8133866058245435043L)
   }
 }
