@@ -1,5 +1,4 @@
 
-personInfoLogPath: hdfs://namenode:9000/data/person-info.parquet
-personIdListLogPath: hdfs://namenode:9000/data/person-id-list.parquet
-ageAnalysisPath: hdfs://namenode:9000/data/analysis-person-info.parquet
-test: hdfs://namenode:9000/test/pt-v-1533869954405.dat
+url: jdbc:mysql://localhost:3306/employees
+username: root
+password: namanh202
