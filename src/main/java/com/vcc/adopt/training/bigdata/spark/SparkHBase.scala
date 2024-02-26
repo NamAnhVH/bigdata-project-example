@@ -200,9 +200,8 @@ object SparkHBase {
     val windowSpec = Window.partitionBy("guid").orderBy(desc("cookieCreate"))
 
     val latestAccessDF = guidAndIpDF
-      .withColumn("latest_access_time", max("cookieCreate").over(windowSpec))
-      .where($"guid" === guid && $"cookieCreate" === $"latest_access_time")
-      .select("guid", "latest_access_time")
+      .where($"guid" === guid)
+      .select("guid", "cookieCreate")
 
     latestAccessDF.show()
 
