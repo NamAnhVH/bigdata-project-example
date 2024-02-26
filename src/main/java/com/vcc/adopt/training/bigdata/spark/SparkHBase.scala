@@ -203,7 +203,7 @@ object SparkHBase {
     val latestAccessDF = guidAndIpDF
       .withColumn("latest_access_time", max("timeCreate").over(windowSpec))
       .where($"guid" === guid && $"timeCreate" === $"latest_access_time")
-      .select("guid", "ip", "latest_access_time")
+      .select("guid", "latest_access_time")
 
     latestAccessDF.show()
 
