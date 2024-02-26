@@ -193,7 +193,7 @@ object SparkHBase {
         }finally {
           //          hbaseConnection.close()
         }
-      }).toDF("guid", "timeCreate")
+      }).toDF("guid", "timeCreate", "ip")
 
 
     guidAndIpDF.persist()
