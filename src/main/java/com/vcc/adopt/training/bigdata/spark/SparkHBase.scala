@@ -161,26 +161,66 @@ object SparkHBase {
       // Thực hiện vòng lặp để thực hiện truy vấn và xử lý từng phần
       for (i <- 0 until partitions) {
         val offset = i * batchSize // Offset cho mỗi phần
-        val limit = batchSize      // Số lượng dòng dữ liệu trong mỗi phần
+        val limit = batchSize // Số lượng dòng dữ liệu trong mỗi phần
 
         // Thực hiện truy vấn SQL cho phần hiện tại
-        val query = s"SELECT concat(s.emp_no, \"_\", s.from_date) as row_key, s.from_date, s.to_date, s.salary, s.emp_no FROM salaries s LIMIT $limit OFFSET $offset"
+        val query = "SELECT concat(s.emp_no, \"_\", s.from_date) as row_key, s.from_date, s.to_date, s.salary, s.emp_no FROM salaries s LIMIT $limit OFFSET $offset"
         val statement = connection.createStatement()
         val resultSet = statement.executeQuery(query)
 
-      salaries = {
-        import spark.implicits._
-        val rows = Iterator.continually(resultSet).takeWhile(_.next()).map { row =>
-          (row.getString("row_key"),
-            row.getString("from_date"),
-            row.getString("to_date"),
-            row.getInt("salary"),
-            row.getInt("emp_no"),
-          )
+        salaries = {
+          import spark.implicits._
+          val rows = Iterator.continually(resultSet).takeWhile(_.next()).map { row =>
+            (row.getString("row_key"),
+              row.getString("from_date"),
+              row.getString("to_date"),
+              row.getInt("salary"),
+              row.getInt("emp_no"),
+            )
+          }
+          val df = rows.toSeq.toDF("row_key", "from_date", "to_date", "salary", "emp_no")
+          df
         }
-        val df = rows.toSeq.toDF("row_key", "from_date", "to_date","salary","emp_no")
-        df
+        salaries = salaries
+          .withColumn("country", lit("US"))
+          .repartition(5)
+
+        val batchPutSize = 100
+
+        salaries.foreachPartition((rows: Iterator[Row]) => {
+          // tạo connection hbase buộc phải tạo bên trong mỗi partition (không được tạo bên ngoài). Tối ưu hơn sẽ dùng connectionPool để reuse lại connection trên các worker
+          val hbaseConnection = HBaseConnectionFactory.createConnection()
+          try {
+            val table = hbaseConnection.getTable(TableName.valueOf("bai5", "salaries"))
+            val puts = new util.ArrayList[Put]()
+            for (row <- rows) {
+              val row_key = row.getAs[String]("row_key")
+              val from_date = row.getAs[String]("from_date")
+              val to_date = row.getAs[String]("to_date")
+              val salary = row.getAs[Int]("salary")
+              val emp_no = row.getAs[Int]("emp_no")
+
+              val put = new Put(Bytes.toBytes(row_key))
+              put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("from_date"), Bytes.toBytes(from_date))
+              put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("to_date"), Bytes.toBytes(to_date))
+              put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("salary"), Bytes.toBytes(salary))
+              put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("emp_no"), Bytes.toBytes(emp_no))
+
+              puts.add(put)
+              if (puts.size > batchPutSize) {
+                table.put(puts)
+                puts.clear()
+              }
+            }
+            if (puts.size() > 0) {  // đẩy nốt phần còn lại
+              table.put(puts)
+            }
+          } finally {
+            hbaseConnection.close()
+          }
+        })
       }
+
 
     } catch {
       case e: Exception => e.printStackTrace()
@@ -189,45 +229,6 @@ object SparkHBase {
       if (resultSet != null) resultSet.close()
       if (connection != null) connection.close()
     }
-
-    salaries = salaries
-      .withColumn("country", lit("US"))
-      .repartition(5)
-
-    val batchPutSize = 100
-
-    salaries.foreachPartition((rows: Iterator[Row]) => {
-      // tạo connection hbase buộc phải tạo bên trong mỗi partition (không được tạo bên ngoài). Tối ưu hơn sẽ dùng connectionPool để reuse lại connection trên các worker
-      val hbaseConnection = HBaseConnectionFactory.createConnection()
-      try {
-        val table = hbaseConnection.getTable(TableName.valueOf("bai5", "salaries"))
-        val puts = new util.ArrayList[Put]()
-        for (row <- rows) {
-          val row_key = row.getAs[String]("row_key")
-          val from_date = row.getAs[String]("from_date")
-          val to_date = row.getAs[String]("to_date")
-          val salary = row.getAs[Int]("salary")
-          val emp_no = row.getAs[Int]("emp_no")
-
-          val put = new Put(Bytes.toBytes(row_key))
-          put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("from_date"), Bytes.toBytes(from_date))
-          put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("to_date"), Bytes.toBytes(to_date))
-          put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("salary"), Bytes.toBytes(salary))
-          put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("emp_no"), Bytes.toBytes(emp_no))
-
-          puts.add(put)
-          if (puts.size > batchPutSize) {
-            table.put(puts)
-            puts.clear()
-          }
-        }
-        if (puts.size() > 0) {  // đẩy nốt phần còn lại
-          table.put(puts)
-        }
-      } finally {
-        hbaseConnection.close()
-      }
-    })
 
   }
 
