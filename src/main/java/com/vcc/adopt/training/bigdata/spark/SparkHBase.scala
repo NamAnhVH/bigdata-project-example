@@ -291,7 +291,7 @@ object SparkHBase {
 
   def main(args: Array[String]): Unit = {
 //    readMySqlThenPutToHBaseDeptEmp()
-//    readMySqlThenPutToHBaseSalaries()
-    readMySqlThenPutToHBaseTitles()
+    readMySqlThenPutToHBaseSalaries()
+//    readMySqlThenPutToHBaseTitles()
   }
 }
