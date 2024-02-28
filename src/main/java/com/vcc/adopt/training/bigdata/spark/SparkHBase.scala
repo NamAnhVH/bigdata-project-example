@@ -24,6 +24,7 @@ object SparkHBase {
   private val username = ConfigPropertiesLoader.getYamlConfig.getProperty("username")
   private val password = ConfigPropertiesLoader.getYamlConfig.getProperty("password")
   var connection: Connection = null
+  var connection1: Connection = null
   var resultSet: ResultSet = null
 
   private def readMySqlThenPutToHBaseDeptEmp(): Unit = {
@@ -143,10 +144,11 @@ object SparkHBase {
     val batchSize = 100 // Số lượng dòng dữ liệu mỗi lần truy vấn
 
     // Tạo kết nối
+    connection1 = DriverManager.getConnection(url, username, password)
 
     // Thực hiện truy vấn
     val rowCountQuery = "SELECT COUNT(*) AS row_count FROM salaries"
-    val rowCountStatement = connection.createStatement()
+    val rowCountStatement = connection1.createStatement()
     val rowCountResultSet = rowCountStatement.executeQuery(rowCountQuery)
     rowCountResultSet.next()
     val rowCount = rowCountResultSet.getInt("row_count")
@@ -160,7 +162,6 @@ object SparkHBase {
       val limit = batchSize // Số lượng dòng dữ liệu trong mỗi phần
       var salaries : DataFrame = null
       try {
-      connection = DriverManager.getConnection(url, username, password)
 
       // Thực hiện truy vấn SQL cho phần hiện tại
       val query = "SELECT concat(s.emp_no, \"_\", s.from_date) as row_key, s.from_date, s.to_date, s.salary, s.emp_no FROM salaries s LIMIT " + limit + " OFFSET " + offset
