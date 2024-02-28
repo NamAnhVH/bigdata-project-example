@@ -62,7 +62,6 @@ object SparkHBase {
         df
       }
 
-      deptEmp.show()
     } catch {
       case e: Exception => e.printStackTrace()
     } finally {
@@ -70,6 +69,61 @@ object SparkHBase {
       if (resultSet != null) resultSet.close()
       if (connection != null) connection.close()
     }
+
+    deptEmp = deptEmp
+      .withColumn("country", lit("US"))
+      .repartition(5)
+
+    val batchPutSize = 100
+
+    deptEmp.foreachPartition((rows: Iterator[Row]) => {
+      // tạo connection hbase buộc phải tạo bên trong mỗi partition (không được tạo bên ngoài). Tối ưu hơn sẽ dùng connectionPool để reuse lại connection trên các worker
+      val hbaseConnection = HBaseConnectionFactory.createConnection()
+      try {
+        val table = hbaseConnection.getTable(TableName.valueOf("bai5", "dept_emp"))
+        val puts = new util.ArrayList[Put]()
+        for (row <- rows) {
+          val dept_emp = row.getAs[String]("dept_emp")
+          val de_from_date = row.getAs[String]("de_from_date")
+          val de_to_date = row.getAs[String]("de_to_date")
+          val emp_no = row.getAs[Int]("emp_no")
+          val birth_date = row.getAs[String]("birth_date")
+          val first_name = row.getAs[String]("first_name")
+          val last_name = row.getAs[String]("last_name")
+          val gender = row.getAs[String]("gender")
+          val hire_date = row.getAs[String]("hire_date")
+          val dept_no = row.getAs[String]("dept_no")
+          val dept_name = row.getAs[String]("dept_name")
+          val dm_from_date = row.getAs[String]("dm_from_date")
+          val dm_to_date = row.getAs[String]("dm_to_date")
+
+
+          val put = new Put(Bytes.toBytes(dept_emp))
+          put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("de_from_date"), Bytes.toBytes(de_from_date))
+          put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("de_to_date"), Bytes.toBytes(de_to_date))
+          put.addColumn(Bytes.toBytes("emloyee"), Bytes.toBytes("emp_no"), Bytes.toBytes(emp_no))
+          put.addColumn(Bytes.toBytes("emloyee"), Bytes.toBytes("birth_date"), Bytes.toBytes(birth_date))
+          put.addColumn(Bytes.toBytes("emloyee"), Bytes.toBytes("first_name"), Bytes.toBytes(first_name))
+          put.addColumn(Bytes.toBytes("emloyee"), Bytes.toBytes("last_name"), Bytes.toBytes(last_name))
+          put.addColumn(Bytes.toBytes("emloyee"), Bytes.toBytes("gender"), Bytes.toBytes(gender))
+          put.addColumn(Bytes.toBytes("emloyee"), Bytes.toBytes("hire_date"), Bytes.toBytes(hire_date))
+          put.addColumn(Bytes.toBytes("department"), Bytes.toBytes("dept_no"), Bytes.toBytes(dept_no))
+          put.addColumn(Bytes.toBytes("department"), Bytes.toBytes("dept_name"), Bytes.toBytes(dept_name))
+          put.addColumn(Bytes.toBytes("manager"), Bytes.toBytes("dm_from_date"), Bytes.toBytes(dm_from_date))
+          put.addColumn(Bytes.toBytes("manager"), Bytes.toBytes("dm_to_date"), Bytes.toBytes(dm_to_date))
+          puts.add(put)
+          if (puts.size > batchPutSize) {
+            table.put(puts)
+            puts.clear()
+          }
+        }
+        if (puts.size() > 0) {  // đẩy nốt phần còn lại
+          table.put(puts)
+        }
+      } finally {
+        hbaseConnection.close()
+      }
+    })
 
   }
 
