@@ -112,8 +112,12 @@ object SparkHBase {
           put.addColumn(Bytes.toBytes("emloyee"), Bytes.toBytes("hire_date"), Bytes.toBytes(hire_date))
           put.addColumn(Bytes.toBytes("department"), Bytes.toBytes("dept_no"), Bytes.toBytes(dept_no))
           put.addColumn(Bytes.toBytes("department"), Bytes.toBytes("dept_name"), Bytes.toBytes(dept_name))
-          put.addColumn(Bytes.toBytes("manager"), Bytes.toBytes("dm_from_date"), Bytes.toBytes(dm_from_date))
-          put.addColumn(Bytes.toBytes("manager"), Bytes.toBytes("dm_to_date"), Bytes.toBytes(dm_to_date))
+          if(dm_from_date == null){
+            put.addColumn(Bytes.toBytes("manager"), Bytes.toBytes("dm_from_date"), Bytes.toBytes(dm_from_date))
+          }
+          if(dm_to_date == null) {
+            put.addColumn(Bytes.toBytes("manager"), Bytes.toBytes("dm_to_date"), Bytes.toBytes(dm_to_date))
+          }
           puts.add(put)
           if (puts.size > batchPutSize) {
             table.put(puts)
