@@ -5,7 +5,10 @@ import com.vcc.adopt.utils.hbase.HBaseConnectionFactory
 import org.apache.hadoop.hbase.TableName
 import org.apache.hadoop.hbase.client.Put
 import org.apache.hadoop.hbase.util.Bytes
+import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
+import java.util
+
 
 import java.sql.{Connection, DriverManager, ResultSet}
 
