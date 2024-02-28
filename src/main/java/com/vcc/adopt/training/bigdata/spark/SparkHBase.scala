@@ -137,8 +137,6 @@ object SparkHBase {
   private def readMySqlThenPutToHBaseSalaries(): Unit = {
     println("----- Read employees on mySql then put to table bai5:salaries ----")
 
-    var salaries : DataFrame = null
-
     try {
       // Load driver
       Class.forName("com.mysql.cj.jdbc.Driver")
@@ -167,6 +165,7 @@ object SparkHBase {
         val query = "SELECT concat(s.emp_no, \"_\", s.from_date) as row_key, s.from_date, s.to_date, s.salary, s.emp_no FROM salaries s LIMIT $limit OFFSET $offset"
         val statement = connection.createStatement()
         val resultSet = statement.executeQuery(query)
+        var salaries : DataFrame = null
 
         salaries = {
           import spark.implicits._
