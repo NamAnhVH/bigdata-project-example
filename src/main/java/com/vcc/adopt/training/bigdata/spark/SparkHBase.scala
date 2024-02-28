@@ -143,23 +143,42 @@ object SparkHBase {
       // Load driver
       Class.forName("com.mysql.cj.jdbc.Driver")
 
+      val batchSize = 100 // Số lượng dòng dữ liệu mỗi lần truy vấn
+
       // Tạo kết nối
       connection = DriverManager.getConnection(url, username, password)
 
       // Thực hiện truy vấn
-      val statement = connection.createStatement()
-      val query = "Select concat(s.emp_no, \"_\", s.from_date) as row_key, s.to_date, s.salary from salaries s;"
-      resultSet = statement.executeQuery(query)
+      val rowCountQuery = "SELECT COUNT(*) AS row_count FROM salaries"
+      val rowCountStatement = connection.createStatement()
+      val rowCountResultSet = rowCountStatement.executeQuery(rowCountQuery)
+      rowCountResultSet.next()
+      val rowCount = rowCountResultSet.getInt("row_count")
+
+      // Tính số lượng phần cần chia dữ liệu
+      val partitions = math.ceil(rowCount.toDouble / batchSize).toInt
+
+      // Thực hiện vòng lặp để thực hiện truy vấn và xử lý từng phần
+      for (i <- 0 until partitions) {
+        val offset = i * batchSize // Offset cho mỗi phần
+        val limit = batchSize      // Số lượng dòng dữ liệu trong mỗi phần
+
+        // Thực hiện truy vấn SQL cho phần hiện tại
+        val query = s"SELECT concat(s.emp_no, \"_\", s.from_date) as row_key, s.from_date, s.to_date, s.salary, s.emp_no FROM salaries s LIMIT $limit OFFSET $offset"
+        val statement = connection.createStatement()
+        val resultSet = statement.executeQuery(query)
 
       salaries = {
         import spark.implicits._
         val rows = Iterator.continually(resultSet).takeWhile(_.next()).map { row =>
           (row.getString("row_key"),
+            row.getString("from_date"),
             row.getString("to_date"),
             row.getInt("salary"),
+            row.getInt("emp_no"),
           )
         }
-        val df = rows.toSeq.toDF("row_key", "to_date", "salary")
+        val df = rows.toSeq.toDF("row_key", "from_date", "to_date","salary","emp_no")
         df
       }
 
@@ -185,12 +204,16 @@ object SparkHBase {
         val puts = new util.ArrayList[Put]()
         for (row <- rows) {
           val row_key = row.getAs[String]("row_key")
+          val from_date = row.getAs[String]("from_date")
           val to_date = row.getAs[String]("to_date")
           val salary = row.getAs[Int]("salary")
+          val emp_no = row.getAs[Int]("emp_no")
 
           val put = new Put(Bytes.toBytes(row_key))
+          put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("from_date"), Bytes.toBytes(from_date))
           put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("to_date"), Bytes.toBytes(to_date))
           put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("salary"), Bytes.toBytes(salary))
+          put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("emp_no"), Bytes.toBytes(emp_no))
 
           puts.add(put)
           if (puts.size > batchPutSize) {
