@@ -162,7 +162,7 @@ object SparkHBase {
       val limit = batchSize // Số lượng dòng dữ liệu trong mỗi phần
       var salaries : DataFrame = null
       try {
-
+        connection = DriverManager.getConnection(url, username, password)
       // Thực hiện truy vấn SQL cho phần hiện tại
       val query = "SELECT concat(s.emp_no, \"_\", s.from_date) as row_key, s.from_date, s.to_date, s.salary, s.emp_no FROM salaries s LIMIT " + limit + " OFFSET " + offset
       val statement = connection.createStatement()
