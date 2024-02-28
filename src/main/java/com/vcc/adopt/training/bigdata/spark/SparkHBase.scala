@@ -148,20 +148,18 @@ object SparkHBase {
 
       // Thực hiện truy vấn
       val statement = connection.createStatement()
-      val query = "Select concat(s.emp_no, \"_\", s.from_date) as row_key, s.from_date, s.to_date, s.salary, s.emp_no from salaries s;"
+      val query = "Select concat(s.emp_no, \"_\", s.from_date) as row_key, s.to_date, s.salary from salaries s;"
       resultSet = statement.executeQuery(query)
 
       salaries = {
         import spark.implicits._
         val rows = Iterator.continually(resultSet).takeWhile(_.next()).map { row =>
           (row.getString("row_key"),
-            row.getString("from_date"),
             row.getString("to_date"),
             row.getInt("salary"),
-            row.getInt("emp_no"),
           )
         }
-        val df = rows.toSeq.toDF("row_key", "from_date", "to_date","salary","emp_no")
+        val df = rows.toSeq.toDF("row_key", "to_date", "salary")
         df
       }
 
@@ -187,16 +185,12 @@ object SparkHBase {
         val puts = new util.ArrayList[Put]()
         for (row <- rows) {
           val row_key = row.getAs[String]("row_key")
-          val from_date = row.getAs[String]("from_date")
           val to_date = row.getAs[String]("to_date")
           val salary = row.getAs[Int]("salary")
-          val emp_no = row.getAs[Int]("emp_no")
 
           val put = new Put(Bytes.toBytes(row_key))
-          put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("from_date"), Bytes.toBytes(from_date))
           put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("to_date"), Bytes.toBytes(to_date))
           put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("salary"), Bytes.toBytes(salary))
-          put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("emp_no"), Bytes.toBytes(emp_no))
 
           puts.add(put)
           if (puts.size > batchPutSize) {
@@ -298,6 +292,6 @@ object SparkHBase {
   def main(args: Array[String]): Unit = {
 //    readMySqlThenPutToHBaseDeptEmp()
     readMySqlThenPutToHBaseSalaries()
-    readMySqlThenPutToHBaseTitles()
+//    readMySqlThenPutToHBaseTitles()
   }
 }
