@@ -414,6 +414,9 @@ object SparkHBase {
         }
       }).toDF("emp_no", "birth_date","first_name","last_name","gender","hire_date")
 
+    managerListDF.persist()
+    managerListDF.show()
+
   }
 
 
