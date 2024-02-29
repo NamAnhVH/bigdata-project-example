@@ -505,9 +505,9 @@ object SparkHBase {
       row_key = {
         import spark.implicits._
         val rows = Iterator.continually(resultSet).takeWhile(_.next()).map { row =>
-          (row.getString("row_key"))
+          (row.getString("from_date"))
         }
-        val df = rows.toSeq.toDF("row_key")
+        val df = rows.toSeq.toDF("from_date")
         df
       }
 
@@ -526,7 +526,7 @@ object SparkHBase {
         val table = hbaseConnection.getTable(TableName.valueOf("bai5", "titles"))
         try {
           rows.flatMap(row => {
-            val get = new Get(Bytes.toBytes(empNo + "_" + row.getAs[String]("row_key")))
+            val get = new Get(Bytes.toBytes(empNo + "_" + row.getAs[String]("from_date")))
             get.addColumn(Bytes.toBytes("info"), Bytes.toBytes("title"))
             if (table.get(get).getValue(Bytes.toBytes("info"), Bytes.toBytes("title")) != null) {
               Some(
