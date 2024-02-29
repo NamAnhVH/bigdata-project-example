@@ -8,8 +8,8 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 
-import java.sql.{Connection, DriverManager, ResultSet}
 import java.util
+import java.sql.{Connection, DriverManager, ResultSet}
 
 
 
@@ -137,7 +137,7 @@ object SparkHBase {
   private def readMySqlThenPutToHBaseSalaries(): Unit = {
     println("----- Read employees on mySql then put to table bai5:salaries ----")
 
-    // Load driver
+      // Load driver
     Class.forName("com.mysql.cj.jdbc.Driver")
 
     val batchSize = 300000 // Số lượng dòng dữ liệu mỗi lần truy vấn
@@ -162,24 +162,24 @@ object SparkHBase {
       var salaries : DataFrame = null
       try {
         connection = DriverManager.getConnection(url, username, password)
-        // Thực hiện truy vấn SQL cho phần hiện tại
-        val query = "SELECT concat(s.emp_no, \"_\", s.from_date) as row_key, s.from_date, s.to_date, s.salary, s.emp_no FROM salaries s LIMIT " + limit + " OFFSET " + offset
-        val statement = connection.createStatement()
-        val resultSet = statement.executeQuery(query)
+      // Thực hiện truy vấn SQL cho phần hiện tại
+      val query = "SELECT concat(s.emp_no, \"_\", s.from_date) as row_key, s.from_date, s.to_date, s.salary, s.emp_no FROM salaries s LIMIT " + limit + " OFFSET " + offset
+      val statement = connection.createStatement()
+      val resultSet = statement.executeQuery(query)
 
-        salaries = {
-          import spark.implicits._
-          val rows = Iterator.continually(resultSet).takeWhile(_.next()).map { row =>
-            (row.getString("row_key"),
-              row.getString("from_date"),
-              row.getString("to_date"),
-              row.getInt("salary"),
-              row.getInt("emp_no"),
-            )
-          }
-          val df = rows.toSeq.toDF("row_key", "from_date", "to_date", "salary", "emp_no")
-          df
+      salaries = {
+        import spark.implicits._
+        val rows = Iterator.continually(resultSet).takeWhile(_.next()).map { row =>
+          (row.getString("row_key"),
+            row.getString("from_date"),
+            row.getString("to_date"),
+            row.getInt("salary"),
+            row.getInt("emp_no"),
+          )
         }
+        val df = rows.toSeq.toDF("row_key", "from_date", "to_date", "salary", "emp_no")
+        df
+      }
 
       } catch {
         case e: Exception => e.printStackTrace()
@@ -316,7 +316,7 @@ object SparkHBase {
   private def readHbase51(deptNo: String): Unit = {
     println("----- Lấy được danh sách, nhân viên & quản lý của 1 phòng ban cần truy vấn ----")
 
-    var row_key : DataFrame = null
+    var employees : DataFrame = null
 
     try {
       // Load driver
@@ -327,19 +327,17 @@ object SparkHBase {
 
       // Thực hiện truy vấn
       val statement = connection.createStatement()
-      val query = "Select concat('" + deptNo + "', \"_\", emp_no) as row_key from employees;"
+      val query = "Select emp_no from employees;"
       resultSet = statement.executeQuery(query)
 
-      row_key = {
+      employees = {
         import spark.implicits._
         val rows = Iterator.continually(resultSet).takeWhile(_.next()).map { row =>
-          (row.getString("row_key"))
+          (row.getInt("emp_no"))
         }
-        val df = rows.toSeq.toDF("row_key")
+        val df = rows.toSeq.toDF("emp_no")
         df
       }
-
-      row_key.show()
 
     } catch {
       case e: Exception => e.printStackTrace()
@@ -350,14 +348,14 @@ object SparkHBase {
     }
 
     import spark.implicits._
-    val empListDF = row_key
+    val empListDF = employees
       .repartition(5)
       .mapPartitions((rows: Iterator[Row]) => {
         val hbaseConnection = HBaseConnectionFactory.createConnection()
         val table = hbaseConnection.getTable(TableName.valueOf("bai5", "dept_emp"))
         try {
-          rows.map(row => {
-            val get = new Get(Bytes.toBytes(row.getAs[String]("row_key")))
+          rows.flatMap(row => {
+            val get = new Get(Bytes.toBytes(deptNo + "_" + row.getAs[String]("emp_no")))
             get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("emp_no"))
             get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("birth_date"))
             get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("first_name"))
@@ -365,7 +363,7 @@ object SparkHBase {
             get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("gender"))
             get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("hire_date"))
             if (table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("emp_no")) != null) {
-              (
+              Some(
                 Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("emp_no"))),
                 Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("birth_date"))),
                 Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("first_name"))),
@@ -386,15 +384,15 @@ object SparkHBase {
     empListDF.persist()
     empListDF.show(empListDF.count().toInt)
 
-
-    val managerListDF = row_key
+    import spark.implicits._
+    val managerListDF = employees
       .repartition(5)
       .mapPartitions((rows: Iterator[Row]) => {
         val hbaseConnection = HBaseConnectionFactory.createConnection()
         val table = hbaseConnection.getTable(TableName.valueOf("bai5", "dept_emp"))
         try {
-          rows.map(row => {
-            val get = new Get(Bytes.toBytes(row.getAs[String]("row_key")))
+          rows.flatMap(row => {
+            val get = new Get(Bytes.toBytes(deptNo + "_" + row.getAs[String]("emp_no")))
             get.addColumn(Bytes.toBytes("manager"), Bytes.toBytes("dm_from_date"))
             get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("emp_no"))
             get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("birth_date"))
@@ -403,7 +401,7 @@ object SparkHBase {
             get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("gender"))
             get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("hire_date"))
             if (table.get(get).getValue(Bytes.toBytes("manager"), Bytes.toBytes("dm_from_date")) != null) {
-              (
+              Some(
                 Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("emp_no"))),
                 Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("birth_date"))),
                 Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("first_name"))),
@@ -428,9 +426,9 @@ object SparkHBase {
 
 
   def main(args: Array[String]): Unit = {
-    //    readMySqlThenPutToHBaseDeptEmp()
-    //    readMySqlThenPutToHBaseSalaries()
-    //    readMySqlThenPutToHBaseTitles()
+//    readMySqlThenPutToHBaseDeptEmp()
+//    readMySqlThenPutToHBaseSalaries()
+//    readMySqlThenPutToHBaseTitles()
     readHbase51("d001")
   }
 }
