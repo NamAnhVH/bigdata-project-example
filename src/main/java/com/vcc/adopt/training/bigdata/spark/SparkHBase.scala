@@ -3,13 +3,12 @@ package com.vcc.adopt.training.bigdata.spark
 import com.vcc.adopt.config.ConfigPropertiesLoader
 import com.vcc.adopt.utils.hbase.HBaseConnectionFactory
 import org.apache.hadoop.hbase.TableName
-import org.apache.hadoop.hbase.client.Put
+import org.apache.hadoop.hbase.client.{Get, Put}
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
+
 import java.util
-
-
 import java.sql.{Connection, DriverManager, ResultSet}
 
 
@@ -314,11 +313,114 @@ object SparkHBase {
 
   }
 
+  private def readHbase51(deptNo: String): Unit = {
+    println("----- Lấy được danh sách, nhân viên & quản lý của 1 phòng ban cần truy vấn ----")
+
+    var employees : DataFrame = null
+
+    try {
+      // Load driver
+      Class.forName("com.mysql.cj.jdbc.Driver")
+
+      // Tạo kết nối
+      connection = DriverManager.getConnection(url, username, password)
+
+      // Thực hiện truy vấn
+      val statement = connection.createStatement()
+      val query = "Select emp_no from employees;"
+      resultSet = statement.executeQuery(query)
+
+      employees = {
+        import spark.implicits._
+        val rows = Iterator.continually(resultSet).takeWhile(_.next()).map { row =>
+          (row.getString("emp_no"))
+        }
+        val df = rows.toSeq.toDF("emp_no")
+        df
+      }
+
+    } catch {
+      case e: Exception => e.printStackTrace()
+    } finally {
+      // Đóng kết nối
+      if (resultSet != null) resultSet.close()
+      if (connection != null) connection.close()
+    }
+
+    import spark.implicits._
+    val empListDF = employees
+      .repartition(5)
+      .mapPartitions((rows: Iterator[Row]) => {
+        val hbaseConnection = HBaseConnectionFactory.createConnection()
+        val table = hbaseConnection.getTable(TableName.valueOf("bai5", "dept_emp"))
+        try {
+          rows.map(row => {
+            val get = new Get(Bytes.toBytes(deptNo + "_" + row.getAs[Int]("emp_no")))
+            get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("emp_no"))
+            get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("birth_date"))
+            get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("first_name"))
+            get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("last_name"))
+            get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("gender"))
+            get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("hire_date"))
+            (
+              Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("emp_no"))),
+              Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("birth_date"))),
+              Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("first_name"))),
+              Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("last_name"))),
+              Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("gender"))),
+              Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("hire_date"))),
+            )
+          })
+        }finally {
+          //          hbaseConnection.close()
+        }
+      }).toDF("emp_no", "birth_date","first_name","last_name","gender","hire_date")
+
+    empListDF.persist()
+    empListDF.show()
+
+    import spark.implicits._
+    val managerListDF = employees
+      .repartition(5)
+      .mapPartitions((rows: Iterator[Row]) => {
+        val hbaseConnection = HBaseConnectionFactory.createConnection()
+        val table = hbaseConnection.getTable(TableName.valueOf("bai5", "dept_emp"))
+        try {
+          rows.map(row => {
+            val get = new Get(Bytes.toBytes(deptNo + "_" + row.getAs[Int]("emp_no")))
+            get.addColumn(Bytes.toBytes("manager"), Bytes.toBytes("dm_from_date"))
+            get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("emp_no"))
+            get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("birth_date"))
+            get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("first_name"))
+            get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("last_name"))
+            get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("gender"))
+            get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("hire_date"))
+            if (table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("emp_no")) != null) {
+              (
+                Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("emp_no"))),
+                Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("birth_date"))),
+                Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("first_name"))),
+                Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("last_name"))),
+                Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("gender"))),
+                Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("hire_date")))
+              )
+            }
+            else {
+              None
+            }
+          })
+        }finally {
+          //          hbaseConnection.close()
+        }
+      }).toDF("emp_no", "birth_date","first_name","last_name","gender","hire_date")
+
+  }
+
 
   def main(args: Array[String]): Unit = {
 //    readMySqlThenPutToHBaseDeptEmp()
-    readMySqlThenPutToHBaseSalaries()
+//    readMySqlThenPutToHBaseSalaries()
 //    readMySqlThenPutToHBaseTitles()
-//    readHbase51()
+    readHbase51("d001")
   }
 }
