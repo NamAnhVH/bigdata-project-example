@@ -469,7 +469,7 @@ object SparkHBase {
             get.addColumn(Bytes.toBytes("info"), Bytes.toBytes("salary"))
             val salaryBytes = table.get(get).getValue(Bytes.toBytes("info"), Bytes.toBytes("salary"))
             if (salaryBytes != null) {
-              Bytes.toLong(salaryBytes)
+              Bytes.toInt(salaryBytes)
             } else {
               0L
             }
