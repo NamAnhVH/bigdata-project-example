@@ -377,7 +377,7 @@ object SparkHBase {
       }).toDF("emp_no", "birth_date","first_name","last_name","gender","hire_date")
 
     empListDF.persist()
-    empListDF.show()
+    empListDF.show(empListDF.count().toInt)
 
     import spark.implicits._
     val managerListDF = employees
@@ -415,7 +415,7 @@ object SparkHBase {
       }).toDF("emp_no", "birth_date","first_name","last_name","gender","hire_date")
 
     managerListDF.persist()
-    managerListDF.show()
+    managerListDF.show(managerListDF.count().toInt)
 
   }
 
