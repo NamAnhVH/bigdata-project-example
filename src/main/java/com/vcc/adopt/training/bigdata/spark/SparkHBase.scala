@@ -364,14 +364,19 @@ object SparkHBase {
             get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("last_name"))
             get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("gender"))
             get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("hire_date"))
-            (
-              Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("emp_no"))),
-              Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("birth_date"))),
-              Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("first_name"))),
-              Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("last_name"))),
-              Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("gender"))),
-              Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("hire_date"))),
-            )
+            if (table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("emp_no")) != null) {
+              (
+                Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("emp_no"))),
+                Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("birth_date"))),
+                Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("first_name"))),
+                Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("last_name"))),
+                Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("gender"))),
+                Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("hire_date")))
+              )
+            }
+            else {
+              None
+            }
           })
         }finally {
           //          hbaseConnection.close()
@@ -397,7 +402,7 @@ object SparkHBase {
             get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("last_name"))
             get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("gender"))
             get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("hire_date"))
-            if (table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("emp_no")) != null) {
+            if (table.get(get).getValue(Bytes.toBytes("manager"), Bytes.toBytes("dm_from_date")) != null) {
               (
                 Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("emp_no"))),
                 Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("birth_date"))),
