@@ -339,6 +339,8 @@ object SparkHBase {
         df
       }
 
+      employees.show()
+
     } catch {
       case e: Exception => e.printStackTrace()
     } finally {
