@@ -333,7 +333,7 @@ object SparkHBase {
       row_key = {
         import spark.implicits._
         val rows = Iterator.continually(resultSet).takeWhile(_.next()).map { row =>
-          (row.getInt("row_key"))
+          (row.getString("row_key"))
         }
         val df = rows.toSeq.toDF("row_key")
         df
