@@ -327,7 +327,7 @@ object SparkHBase {
 
       // Thực hiện truy vấn
       val statement = connection.createStatement()
-      val query = "Select concat(" + deptNo + ", \"_\", emp_no) from employees;"
+      val query = "Select concat('" + deptNo + "', \"_\", emp_no) from employees;"
       resultSet = statement.executeQuery(query)
 
       row_key = {
