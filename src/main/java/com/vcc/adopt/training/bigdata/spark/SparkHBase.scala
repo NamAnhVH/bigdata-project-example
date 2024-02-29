@@ -355,7 +355,7 @@ object SparkHBase {
         val table = hbaseConnection.getTable(TableName.valueOf("bai5", "dept_emp"))
         try {
           rows.map(row => {
-            val get = new Get(Bytes.toBytes(deptNo + "_" + row.getAs[Int]("emp_no")))
+            val get = new Get(Bytes.toBytes(deptNo + "_" + row.getAs[String]("emp_no")))
             get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("emp_no"))
             get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("birth_date"))
             get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("first_name"))
@@ -387,7 +387,7 @@ object SparkHBase {
         val table = hbaseConnection.getTable(TableName.valueOf("bai5", "dept_emp"))
         try {
           rows.map(row => {
-            val get = new Get(Bytes.toBytes(deptNo + "_" + row.getAs[Int]("emp_no")))
+            val get = new Get(Bytes.toBytes(deptNo + "_" + row.getAs[String]("emp_no")))
             get.addColumn(Bytes.toBytes("manager"), Bytes.toBytes("dm_from_date"))
             get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("emp_no"))
             get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("birth_date"))
