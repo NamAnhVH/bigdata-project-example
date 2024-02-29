@@ -316,7 +316,7 @@ object SparkHBase {
   private def readHbase51(deptNo: String): Unit = {
     println("----- Lấy được danh sách, nhân viên & quản lý của 1 phòng ban cần truy vấn ----")
 
-    var employees : DataFrame = null
+    var row_key : DataFrame = null
 
     try {
       // Load driver
@@ -327,15 +327,15 @@ object SparkHBase {
 
       // Thực hiện truy vấn
       val statement = connection.createStatement()
-      val query = "Select emp_no from employees;"
+      val query = "Select concat(" + deptNo + ",\"_\", emp_no) as row_key from dept_emp where dept_no = " + deptNo
       resultSet = statement.executeQuery(query)
 
-      employees = {
+      row_key = {
         import spark.implicits._
         val rows = Iterator.continually(resultSet).takeWhile(_.next()).map { row =>
-          (row.getInt("emp_no"))
+          (row.getString("row_key"))
         }
-        val df = rows.toSeq.toDF("emp_no")
+        val df = rows.toSeq.toDF("row_key")
         df
       }
 
@@ -348,14 +348,14 @@ object SparkHBase {
     }
 
     import spark.implicits._
-    val empListDF = employees
+    val empListDF = row_key
       .repartition(5)
       .mapPartitions((rows: Iterator[Row]) => {
         val hbaseConnection = HBaseConnectionFactory.createConnection()
         val table = hbaseConnection.getTable(TableName.valueOf("bai5", "dept_emp"))
         try {
           rows.flatMap(row => {
-            val get = new Get(Bytes.toBytes(deptNo + "_" + row.getAs[String]("emp_no")))
+            val get = new Get(Bytes.toBytes(row.getAs[String]("row_key")))
             get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("emp_no"))
             get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("birth_date"))
             get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("first_name"))
@@ -384,22 +384,22 @@ object SparkHBase {
     empListDF.persist()
     empListDF.show(empListDF.count().toInt)
 
-    val managerListDF = employees
+    val managerListDF = row_key
       .repartition(5)
       .mapPartitions((rows: Iterator[Row]) => {
         val hbaseConnection = HBaseConnectionFactory.createConnection()
         val table = hbaseConnection.getTable(TableName.valueOf("bai5", "dept_emp"))
         try {
           rows.flatMap(row => {
-            val get = new Get(Bytes.toBytes(deptNo + "_" + row.getAs[String]("emp_no")))
+            val get = new Get(Bytes.toBytes(row.getAs[String]("row_key")))
             get.addColumn(Bytes.toBytes("manager"), Bytes.toBytes("dm_from_date"))
-            get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("emp_no"))
-            get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("birth_date"))
-            get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("first_name"))
-            get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("last_name"))
-            get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("gender"))
-            get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("hire_date"))
             if (table.get(get).getValue(Bytes.toBytes("manager"), Bytes.toBytes("dm_from_date")) != null) {
+              get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("emp_no"))
+              get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("birth_date"))
+              get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("first_name"))
+              get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("last_name"))
+              get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("gender"))
+              get.addColumn(Bytes.toBytes("employee"), Bytes.toBytes("hire_date"))
               Some(
                 Bytes.toInt(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("emp_no"))),
                 Bytes.toString(table.get(get).getValue(Bytes.toBytes("employee"), Bytes.toBytes("birth_date"))),
@@ -538,7 +538,7 @@ object SparkHBase {
 //    readMySqlThenPutToHBaseDeptEmp()
 //    readMySqlThenPutToHBaseSalaries()
 //    readMySqlThenPutToHBaseTitles()
-//    readHbase51("d001")
-    readHbase52("d001")
+    readHbase51("d001")
+//    readHbase52("d001")
   }
 }
