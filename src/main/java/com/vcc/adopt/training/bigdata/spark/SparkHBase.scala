@@ -437,7 +437,7 @@ object SparkHBase {
 
       // Thực hiện truy vấn
       val statement = connection.createStatement()
-      val query = "SELECT concat(s.emp_no, \"_\", s.from_date) as row_key FROM salaries where s.from_date < '" + date +"' and s.to_date > '" + date + "'"
+      val query = "SELECT concat(s.emp_no, \"_\", s.from_date) as row_key FROM salaries s where s.from_date < '" + date +"' and s.to_date > '" + date + "'"
       resultSet = statement.executeQuery(query)
 
       row_key = {
