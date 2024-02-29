@@ -333,7 +333,7 @@ object SparkHBase {
       employees = {
         import spark.implicits._
         val rows = Iterator.continually(resultSet).takeWhile(_.next()).map { row =>
-          (row.getString("emp_no"))
+          (row.getInt("emp_no"))
         }
         val df = rows.toSeq.toDF("emp_no")
         df
